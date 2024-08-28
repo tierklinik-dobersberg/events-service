@@ -8,7 +8,6 @@ import (
 
 	connect "github.com/bufbuild/connect-go"
 	"github.com/bufbuild/protovalidate-go"
-	"github.com/sirupsen/logrus"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
@@ -108,15 +107,18 @@ func main() {
 	// Create the server
 	srv, err := server.CreateWithOptions(cfg.ListenAddress, wrapWithKey("public", loggingHandler(serveMux)), server.WithCORS(corsConfig))
 	if err != nil {
-		logrus.Fatalf("failed to setup server: %s", err)
+		slog.Error("failed to setup server", slog.Any("error", err.Error()))
+		os.Exit(-1)
 	}
 
 	adminServer, err := server.CreateWithOptions(cfg.AdminListenAddress, wrapWithKey("admin", loggingHandler(serveMux)), server.WithCORS(corsConfig))
 	if err != nil {
-		logrus.Fatalf("failed to setup server: %s", err)
+		slog.Error("failed to setup admin-server", slog.Any("error", err.Error()))
+		os.Exit(-1)
 	}
 
 	if err := server.Serve(ctx, srv, adminServer); err != nil {
-		logrus.Fatalf("failed to serve: %s", err)
+		slog.Error("failed to serve", slog.Any("error", err.Error()))
+		os.Exit(-1)
 	}
 }
