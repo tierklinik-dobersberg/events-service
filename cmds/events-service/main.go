@@ -6,12 +6,23 @@ import (
 	"net/http"
 	"os"
 
+	connect "github.com/bufbuild/connect-go"
+	"github.com/bufbuild/protovalidate-go"
+	"github.com/sirupsen/logrus"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
+	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
+	"github.com/tierklinik-dobersberg/apis/pkg/auth"
+	"github.com/tierklinik-dobersberg/apis/pkg/cors"
+	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
+	"github.com/tierklinik-dobersberg/apis/pkg/validator"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
+	"google.golang.org/protobuf/reflect/protoregistry"
 )
+
+var serverContextKey = struct{ S string }{S: "serverContextKey"}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -21,6 +32,46 @@ func main() {
 	if err != nil {
 		slog.Error("failed to load configuration", slog.Any("error", err.Error()))
 		os.Exit(-1)
+	}
+
+	protoValidator, err := protovalidate.New()
+	if err != nil {
+		slog.Error("failed to prepare protovalidate", slog.Any("error", err.Error()))
+		os.Exit(-1)
+	}
+
+	// TODO(ppacher): privacy-interceptor
+
+	roleClient := idmv1connect.NewRoleServiceClient(http.DefaultClient, cfg.IdmURL)
+
+	authInterceptor := auth.NewAuthAnnotationInterceptor(
+		protoregistry.GlobalFiles,
+		auth.NewIDMRoleResolver(roleClient),
+		func(ctx context.Context, req connect.AnyRequest) (auth.RemoteUser, error) {
+			serverKey, _ := ctx.Value(serverContextKey).(string)
+
+			if serverKey == "admin" {
+				return auth.RemoteUser{
+					ID:          "service-account",
+					DisplayName: req.Peer().Addr,
+					RoleIDs:     []string{"idm_superuser"}, // FIXME(ppacher): use a dedicated manager role for this
+					Admin:       true,
+				}, nil
+			}
+
+			return auth.RemoteHeaderExtractor(ctx, req)
+		},
+	)
+
+	interceptors := connect.WithInterceptors(
+		log.NewLoggingInterceptor(),
+		authInterceptor,
+		validator.NewInterceptor(protoValidator),
+	)
+
+	corsConfig := cors.Config{
+		AllowedOrigins:   cfg.AllowedOrigins,
+		AllowCredentials: true,
 	}
 
 	b, err := broker.NewMQTTBroker(ctx, cfg.MqttURL)
@@ -37,17 +88,35 @@ func main() {
 
 	serveMux := http.NewServeMux()
 
-	path, handler := eventsv1connect.NewEventServiceHandler(svc)
+	path, handler := eventsv1connect.NewEventServiceHandler(svc, interceptors)
 	serveMux.Handle(path, handler)
 
-	srv, err := server.CreateWithOptions(cfg.ListenAddress, serveMux)
-	if err != nil {
-		slog.Error("failed to create server", slog.Any("error", err.Error()))
-		os.Exit(-1)
+	loggingHandler := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+		})
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
-		slog.Error("failed to listen", slog.Any("error", err.Error()))
-		os.Exit(-1)
+	wrapWithKey := func(key string, next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r = r.WithContext(context.WithValue(r.Context(), serverContextKey, key))
+
+			next.ServeHTTP(w, r)
+		})
+	}
+
+	// Create the server
+	srv, err := server.CreateWithOptions(cfg.ListenAddress, wrapWithKey("public", loggingHandler(serveMux)), server.WithCORS(corsConfig))
+	if err != nil {
+		logrus.Fatalf("failed to setup server: %s", err)
+	}
+
+	adminServer, err := server.CreateWithOptions(cfg.AdminListenAddress, wrapWithKey("admin", loggingHandler(serveMux)), server.WithCORS(corsConfig))
+	if err != nil {
+		logrus.Fatalf("failed to setup server: %s", err)
+	}
+
+	if err := server.Serve(ctx, srv, adminServer); err != nil {
+		logrus.Fatalf("failed to serve: %s", err)
 	}
 }

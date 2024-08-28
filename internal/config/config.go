@@ -7,8 +7,11 @@ import (
 )
 
 type Config struct {
-	MqttURL       string `env:"MQTT_URL,required"`
-	ListenAddress string `env:"LISTEN, default=:8090"`
+	MqttURL            string   `env:"MQTT_URL,required"`
+	ListenAddress      string   `env:"LISTEN, default=:8090"`
+	AdminListenAddress string   `env:"ADMIN_LISTEN, default=:8091"`
+	AllowedOrigins     []string `env:"ALLOWED_ORIGINS, default=*"`
+	IdmURL             string   `env:"IDM_URL,required"`
 }
 
 func LoadConfig(ctx context.Context) (*Config, error) {
