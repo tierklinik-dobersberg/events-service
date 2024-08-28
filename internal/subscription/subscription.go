@@ -18,7 +18,7 @@ var (
 	ErrStarted = errors.New("subscription already started")
 )
 
-type Stream = connect.BidiStream[eventsv1.SubscribeRequest, eventsv1.Event]
+type Stream = *connect.BidiStream[eventsv1.SubscribeRequest, eventsv1.Event]
 
 // OnClosedCallback might be added to a subscription to get notified
 // when the underlying stream ends (only the send-side).
