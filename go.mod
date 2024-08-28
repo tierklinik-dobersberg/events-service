@@ -12,8 +12,14 @@ require (
 )
 
 require (
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/golang/gddo v0.0.0-20210115222349-20d68f94ee1f // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/mitchellh/go-server-timing v1.0.1 // indirect
+	github.com/rs/cors v1.11.0 // indirect
+	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.24.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 )

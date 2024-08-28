@@ -18,6 +18,10 @@ type EventsService struct {
 	broker *broker.Broker
 }
 
+func NewEventsService(broker *broker.Broker) (*EventsService, error) {
+	return &EventsService{broker: broker}, nil
+}
+
 func (svc *EventsService) Subscribe(ctx context.Context, stream subscription.Stream) error {
 	sub, err := subscription.NewSubscription(stream)
 	if err != nil {
