@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"slices"
 	"sync"
 
 	"github.com/bufbuild/connect-go"
@@ -19,7 +20,13 @@ var (
 
 type Stream = connect.BidiStream[eventsv1.SubscribeRequest, eventsv1.Event]
 
+// OnClosedCallback might be added to a subscription to get notified
+// when the underlying stream ends (only the send-side).
 type OnClosedCallback func(s *Subscription)
+
+// OnNewTopic might be added to a subscription to get notified
+// when the underlying stream subscribes to a new protobuf type-url
+type OnNewTopic func(s *Subscription, topic string)
 
 type Subscription struct {
 	l             sync.Mutex
@@ -29,15 +36,27 @@ type Subscription struct {
 	closed        chan struct{}
 	wg            sync.WaitGroup
 	onClose       OnClosedCallback
+	onTopic       OnNewTopic
 	sendQueue     chan *eventsv1.Event
 
 	log *slog.Logger
 }
 
+// Peer returns the peer of the subscription.
 func (s *Subscription) Peer() connect.Peer {
 	return s.stream.Conn().Peer()
 }
 
+// Topics returns a list of all protobuf type-urls
+// this subscription listens to.
+func (s *Subscription) Topics() []string {
+	s.l.Lock()
+	defer s.l.Unlock()
+
+	return slices.Clone(s.protoMessages)
+}
+
+// NewSubscription creates a new subscription for the given stream.
 func NewSubscription(stream Stream) (*Subscription, error) {
 	return &Subscription{
 		stream:    stream,
@@ -66,6 +85,25 @@ func (s *Subscription) OnClose(fn OnClosedCallback) {
 		}
 	} else {
 		s.onClose = fn
+	}
+}
+
+func (s *Subscription) OnNewTopic(fn OnNewTopic) {
+	s.l.Lock()
+	defer s.l.Unlock()
+
+	if s.IsClosed() {
+		return
+	}
+
+	if s.onTopic != nil {
+		old := s.onTopic
+		s.onTopic = func(s *Subscription, topic string) {
+			old(s, topic)
+			fn(s, topic)
+		}
+	} else {
+		s.onTopic = fn
 	}
 }
 
@@ -155,7 +193,18 @@ func (s *Subscription) handleSubscription(msg *eventsv1.SubscribeRequest) {
 
 	switch v := msg.Kind.(type) {
 	case *eventsv1.SubscribeRequest_Subscribe:
-		s.protoMessages = append(s.protoMessages, v.Subscribe)
+		found := false
+		for _, m := range s.protoMessages {
+			if m == v.Subscribe {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			s.protoMessages = append(s.protoMessages, v.Subscribe)
+			s.onTopic(s, v.Subscribe)
+		}
 
 	case *eventsv1.SubscribeRequest_Unsubscribe:
 		for idx, m := range s.protoMessages {
