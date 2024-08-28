@@ -13,9 +13,15 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+type BlockingMQTTClient interface {
+	Subscribe(string, byte, mqtt.MessageHandler) error
+	Unsubscribe(string) error
+	Publish(string, byte, []byte) error
+}
+
 type Broker struct {
 	connLock sync.Mutex
-	conn     mqtt.Client
+	conn     BlockingMQTTClient
 
 	subscriptionLock sync.Mutex
 	subscriptions    []*subscription.Subscription
@@ -23,19 +29,17 @@ type Broker struct {
 	log *slog.Logger
 }
 
-func NewBroker(ctx context.Context, u string) (*Broker, error) {
+func NewMQTTBroker(ctx context.Context, u string) (*Broker, error) {
 	parsedUrl, err := url.Parse(u)
 	if err != nil {
 		return nil, fmt.Errorf("invalid mqtt URL: %w", err)
 	}
 
-	broker := &Broker{
-		log: slog.Default().WithGroup("broker"),
-	}
+	broker, err := NewBroker(ctx, nil)
 
 	opts := mqtt.NewClientOptions()
 	opts.SetAutoReconnect(true)
-	opts.SetOnConnectHandler(broker.handleConnect)
+	opts.SetOnConnectHandler(broker.HandleOnConnect)
 	opts.Servers = []*url.URL{
 		parsedUrl,
 	}
@@ -49,11 +53,20 @@ func NewBroker(ctx context.Context, u string) (*Broker, error) {
 	return broker, nil
 }
 
-func (b *Broker) handleConnect(cli mqtt.Client) {
+func NewBroker(ctx context.Context, cli BlockingMQTTClient) (*Broker, error) {
+	broker := &Broker{
+		log:  slog.Default().WithGroup("broker"),
+		conn: cli,
+	}
+
+	return broker, nil
+}
+
+func (b *Broker) HandleOnConnect(cli mqtt.Client) {
 	b.connLock.Lock()
 	defer b.connLock.Unlock()
 
-	b.conn = cli
+	b.conn = &blockingClient{cli}
 }
 
 func (b *Broker) resubscribeAll() {
@@ -75,8 +88,8 @@ func (b *Broker) resubscribeAll() {
 	for key := range topics {
 		cisTopic := makeTopic(key)
 
-		if t := cli.Subscribe(cisTopic, 0, b.handleMessage); t.Wait() && t.Error() != nil {
-			b.log.Error("failed to subscribe to topic", slog.Any("error", t.Error().Error()))
+		if err := cli.Subscribe(cisTopic, 0, b.handleMessage); err != nil {
+			b.log.Error("failed to subscribe to topic", slog.Any("error", err.Error()))
 
 			break
 		}
@@ -108,8 +121,8 @@ func (b *Broker) Publish(typeUrl string, blob []byte) error {
 	defer b.connLock.Unlock()
 
 	cisTopic := makeTopic(typeUrl)
-	if t := b.conn.Publish(cisTopic, 0, false, blob); t.Wait() && t.Error() != nil {
-		return t.Error()
+	if err := b.conn.Publish(cisTopic, 0, blob); err != nil {
+		return err
 	}
 
 	return nil
@@ -147,8 +160,8 @@ L:
 	}
 
 	cisTopic := makeTopic(topic)
-	if t := b.conn.Subscribe(cisTopic, 0, b.handleMessage); t.Wait() && t.Error() != nil {
-		b.log.Error("failed to subscribe to new topic", slog.Any("error", t.Error().Error()), slog.Any("topic", cisTopic))
+	if err := b.conn.Subscribe(cisTopic, 0, b.handleMessage); err != nil {
+		b.log.Error("failed to subscribe to new topic", slog.Any("error", err.Error()), slog.Any("topic", cisTopic))
 	}
 }
 
@@ -175,8 +188,8 @@ func (b *Broker) handleOnClose(sub *subscription.Subscription) {
 
 	for t, c := range topicCount {
 		if c <= 0 {
-			if token := b.conn.Unsubscribe(makeTopic(t)); token.Wait() && token.Error() != nil {
-				b.log.Error("failed to unsubscribe from topic", slog.Any("error", token.Error().Error()), slog.Any("topic", t))
+			if err := b.conn.Unsubscribe(makeTopic(t)); err != nil {
+				b.log.Error("failed to unsubscribe from topic", slog.Any("error", err.Error()), slog.Any("topic", t))
 			}
 		}
 	}
