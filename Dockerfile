@@ -19,6 +19,6 @@ RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -ldflags "-s -w -linkmode 
 FROM gcr.io/distroless/static
 
 COPY --from=gobuild /go/bin/events-service /go/bin/events-service
-EXPOSE 8080
+EXPOSE 8090
 
 ENTRYPOINT ["/go/bin/events-service"]
