@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	connect "github.com/bufbuild/connect-go"
 	"github.com/bufbuild/protovalidate-go"
@@ -92,7 +93,11 @@ func main() {
 
 	loggingHandler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+
 			next.ServeHTTP(w, r)
+
+			slog.Info("handled request", slog.Any("method", r.Method), slog.Any("path", r.URL.Path), slog.Any("duration", time.Since(start).String()))
 		})
 	}
 
