@@ -1,0 +1,29 @@
+version: "3"
+
+services:
+  events:
+    image: tkd/events-service
+    build:
+      context: .
+    depends_on:
+      mqtt:
+        condition: service_started
+    environment:
+      MQTT_URL: "mqtt:1883"
+    ports:
+      - "8090:8090"
+      - "8091:8091"
+
+  mqtt:
+    image: eclipse-mosquitto
+    hostname: mqtt
+    expose:
+      - "1883"
+      - "9001"
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./testing/mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  

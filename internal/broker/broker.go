@@ -4,18 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"sync"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/tierklinik-dobersberg/events-service/internal/subscription"
+	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type BlockingMQTTClient interface {
 	Subscribe(string, byte, mqtt.MessageHandler) error
-	Unsubscribe(string) error
+	Unsubscribe(...string) error
 	Publish(string, byte, []byte) error
 }
 
@@ -23,26 +21,23 @@ type Broker struct {
 	connLock sync.Mutex
 	conn     BlockingMQTTClient
 
-	subscriptionLock sync.Mutex
-	subscriptions    []*subscription.Subscription
+	l         sync.RWMutex
+	receivers map[string][]chan *eventsv1.Event
+	topics    map[string]struct{}
 
 	log *slog.Logger
 }
 
 func NewMQTTBroker(ctx context.Context, u string) (*Broker, error) {
-	parsedUrl, err := url.Parse(u)
-	if err != nil {
-		return nil, fmt.Errorf("invalid mqtt URL: %w", err)
-	}
-
 	broker, err := NewBroker(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create broker: %w", err)
+	}
 
 	opts := mqtt.NewClientOptions()
 	opts.SetAutoReconnect(true)
 	opts.SetOnConnectHandler(broker.HandleOnConnect)
-	opts.Servers = []*url.URL{
-		parsedUrl,
-	}
+	opts.AddBroker(u)
 
 	cli := mqtt.NewClient(opts)
 
@@ -55,8 +50,10 @@ func NewMQTTBroker(ctx context.Context, u string) (*Broker, error) {
 
 func NewBroker(ctx context.Context, cli BlockingMQTTClient) (*Broker, error) {
 	broker := &Broker{
-		log:  slog.Default().WithGroup("broker"),
-		conn: cli,
+		log:       slog.Default().With("subsystem", "broker"),
+		conn:      cli,
+		receivers: make(map[string][]chan *eventsv1.Event),
+		topics:    make(map[string]struct{}),
 	}
 
 	return broker, nil
@@ -66,132 +63,133 @@ func (b *Broker) HandleOnConnect(cli mqtt.Client) {
 	b.connLock.Lock()
 	defer b.connLock.Unlock()
 
+	b.log.Info("successfully connected to MQTT")
+
 	b.conn = &blockingClient{cli}
-}
 
-func (b *Broker) resubscribeAll() {
-	b.subscriptionLock.Lock()
+	// reconnect to all topics
+	b.l.RLock()
+	defer b.l.RUnlock()
+	for t := range b.topics {
+		topic := makeTopic(t)
 
-	topics := make(map[string]struct{})
-	for _, s := range b.subscriptions {
-		for _, t := range s.Topics() {
-			topics[t] = struct{}{}
-		}
-	}
-
-	b.subscriptionLock.Unlock()
-
-	b.connLock.Lock()
-	cli := b.conn
-	b.connLock.Unlock()
-
-	for key := range topics {
-		cisTopic := makeTopic(key)
-
-		if err := cli.Subscribe(cisTopic, 0, b.handleMessage); err != nil {
-			b.log.Error("failed to subscribe to topic", slog.Any("error", err.Error()))
-
-			break
+		if err := b.conn.Subscribe(topic, 0, b.handleMessage); err != nil {
+			b.log.Error("failed to re-subscribe to topic", "topic", topic, "error", err)
+		} else {
+			b.log.Info("successfully re-subscribed to topic", "topic", topic)
 		}
 	}
 }
 
-func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
-	if msg.Duplicate() {
-		return
-	}
+func (b *Broker) Subscribe(typeUrl string, msgs chan *eventsv1.Event) {
+	b.l.Lock()
+	defer b.l.Unlock()
 
-	pb := new(anypb.Any)
+	b.receivers[typeUrl] = append(b.receivers[typeUrl], msgs)
 
-	if err := proto.Unmarshal(msg.Payload(), pb); err != nil {
-		b.log.Error("failed to unmarshal google.protobuf.Any", slog.Any("error", err.Error()))
-		return
-	}
-
-	b.subscriptionLock.Lock()
-	defer b.subscriptionLock.Unlock()
-
-	for _, s := range b.subscriptions {
-		s.Publish(pb)
+	if _, ok := b.topics[typeUrl]; !ok {
+		go b.subscribe(typeUrl)
 	}
 }
 
-func (b *Broker) Publish(typeUrl string, blob []byte) error {
+func (b *Broker) subscribe(typeUrl string) {
 	b.connLock.Lock()
 	defer b.connLock.Unlock()
 
-	cisTopic := makeTopic(typeUrl)
-	if err := b.conn.Publish(cisTopic, 0, blob); err != nil {
-		return err
+	topic := makeTopic(typeUrl)
+	if err := b.conn.Subscribe(topic, 0, b.handleMessage); err != nil {
+		b.log.Error("failed to subscribe to topic", "topic", topic)
+	} else {
+		b.log.Info("successfully subscribed to topic", "topic", topic)
+		b.l.Lock()
+		defer b.l.Unlock()
+
+		b.topics[typeUrl] = struct{}{}
 	}
+}
+
+func (b *Broker) UnsubscribeAll(msgs chan *eventsv1.Event) {
+	b.l.Lock()
+	defer b.l.Unlock()
+
+	var topicCleanup []string
+	for key, receivers := range b.receivers {
+		for idx, r := range receivers {
+			if r == msgs {
+
+				b.receivers[key] = append(receivers[:idx], receivers[idx+1:]...)
+
+				b.log.Info("removing subscriber from topic", "topic", key, "receiverCount", len(b.receivers[key]))
+			}
+
+			if len(b.receivers[key]) == 0 {
+				b.log.Info("marking topic for cleanup", "topic", key)
+				topicCleanup = append(topicCleanup, key)
+			}
+		}
+	}
+
+	if len(topicCleanup) > 0 {
+		for _, t := range topicCleanup {
+			delete(b.topics, t)
+		}
+
+		go func() {
+			b.connLock.Lock()
+			defer b.connLock.Unlock()
+
+			for idx, t := range topicCleanup {
+				topicCleanup[idx] = makeTopic(t)
+			}
+
+			if err := b.conn.Unsubscribe(topicCleanup...); err != nil {
+				b.log.Error("failed to unsubscribe from unused topics", "error", err)
+			}
+
+			b.log.Info("successfully unsubscribed from unused topics", "topics", topicCleanup)
+		}()
+	}
+}
+
+func (b *Broker) Publish(evt *eventsv1.Event) error {
+	blob, err := proto.Marshal(evt)
+	if err != nil {
+		return fmt.Errorf("failed to marshal protobuf: %w", err)
+	}
+
+	b.connLock.Lock()
+	defer b.connLock.Unlock()
+
+	if b.conn == nil {
+		return fmt.Errorf("not yet connected, please try again later.")
+	}
+
+	topic := makeTopic(evt.Event.TypeUrl)
+
+	if err := b.conn.Publish(topic, 0, blob); err != nil {
+		return fmt.Errorf("failed to publish message: %w", err)
+	}
+
+	b.log.Info("published new message", "topic", topic)
 
 	return nil
 }
 
-func (b *Broker) AddSubscription(sub *subscription.Subscription) {
-	sub.OnClose(b.handleOnClose)
-	sub.OnNewTopic(b.handleNewTopic)
+func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
+	var pb = new(eventsv1.Event)
 
-	b.subscriptionLock.Lock()
-	defer b.subscriptionLock.Unlock()
-
-	b.subscriptions = append(b.subscriptions, sub)
-}
-
-func (b *Broker) handleNewTopic(_ *subscription.Subscription, topic string) {
-	b.connLock.Lock()
-	defer b.connLock.Unlock()
-
-	b.subscriptionLock.Lock()
-	found := false
-L:
-	for _, s := range b.subscriptions {
-		for _, t := range s.Topics() {
-			if t == topic {
-				found = true
-				break L
-			}
-		}
-	}
-	b.subscriptionLock.Unlock()
-
-	if found {
+	if err := proto.Unmarshal(msg.Payload(), pb); err != nil {
+		b.log.Error("failed to unmarshal protobuf message", "error", err.Error())
 		return
 	}
 
-	cisTopic := makeTopic(topic)
-	if err := b.conn.Subscribe(cisTopic, 0, b.handleMessage); err != nil {
-		b.log.Error("failed to subscribe to new topic", slog.Any("error", err.Error()), slog.Any("topic", cisTopic))
-	}
-}
+	b.log.Info("received new event from mqtt", "typeUrl", pb.Event.TypeUrl, "topic", msg.Topic())
 
-func (b *Broker) handleOnClose(sub *subscription.Subscription) {
-	topicCount := make(map[string]int)
-	b.subscriptionLock.Lock()
-	for idx, s := range b.subscriptions {
-		if sub == s {
-			b.subscriptions = append(b.subscriptions[:idx], b.subscriptions[idx+1:]...)
+	b.l.RLock()
+	defer b.l.RUnlock()
 
-			for _, t := range s.Topics() {
-				topicCount[t]--
-			}
-		} else {
-			for _, t := range s.Topics() {
-				topicCount[t]++
-			}
-		}
-	}
-	b.subscriptionLock.Unlock()
-
-	b.connLock.Lock()
-	defer b.connLock.Unlock()
-
-	for t, c := range topicCount {
-		if c <= 0 {
-			if err := b.conn.Unsubscribe(makeTopic(t)); err != nil {
-				b.log.Error("failed to unsubscribe from topic", slog.Any("error", err.Error()), slog.Any("topic", t))
-			}
-		}
+	for _, m := range b.receivers[pb.Event.TypeUrl] {
+		m <- proto.Clone(pb).(*eventsv1.Event)
 	}
 }
 

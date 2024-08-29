@@ -1,0 +1,5 @@
+/.github
+/testing
+go.work
+go.work.sum
+/cmds/eventcli

@@ -20,8 +20,8 @@ func (bc *blockingClient) Publish(topic string, qos byte, payload []byte) error 
 	return t.Error()
 }
 
-func (bc *blockingClient) Unsubscribe(topic string) error {
-	t := bc.conn.Unsubscribe(topic)
+func (bc *blockingClient) Unsubscribe(topic ...string) error {
+	t := bc.conn.Unsubscribe(topic...)
 	t.Wait()
 
 	return t.Error()

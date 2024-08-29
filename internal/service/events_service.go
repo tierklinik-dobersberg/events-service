@@ -3,12 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	connect "github.com/bufbuild/connect-go"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
-	"github.com/tierklinik-dobersberg/events-service/internal/subscription"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -16,35 +16,26 @@ type EventsService struct {
 	eventsv1connect.UnimplementedEventServiceHandler
 
 	broker *broker.Broker
+	l      *slog.Logger
 }
 
 func NewEventsService(broker *broker.Broker) (*EventsService, error) {
-	return &EventsService{broker: broker}, nil
+	return &EventsService{broker: broker, l: slog.Default().WithGroup("service")}, nil
 }
 
-func (svc *EventsService) Subscribe(ctx context.Context, stream subscription.Stream) error {
-	sub, err := subscription.NewSubscription(stream)
-	if err != nil {
-		return err
-	}
-
-	svc.broker.AddSubscription(sub)
-
-	if err := sub.Start(ctx); err != nil {
-		return err
-	}
-
-	sub.Wait()
-
-	return nil
+func (svc *EventsService) Subscribe(ctx context.Context, stream broker.SubscriberStream) error {
+	subscriber := broker.NewSubscriber(stream, svc.broker)
+	return subscriber.Handle(ctx)
 }
 
 func (svc *EventsService) Publish(ctx context.Context, req *connect.Request[eventsv1.Event]) (*connect.Response[emptypb.Empty], error) {
+	svc.l.Info("received publish request", slog.Any("typeUrl", req.Msg.Event.TypeUrl))
+
 	if evt := req.Msg.GetEvent(); evt == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("missing event field"))
 	}
 
-	if err := svc.broker.Publish(req.Msg.Event.TypeUrl, req.Msg.Event.GetValue()); err != nil {
+	if err := svc.broker.Publish(req.Msg); err != nil {
 		return nil, err
 	}
 
@@ -61,7 +52,7 @@ func (svc *EventsService) PublishStream(ctx context.Context, stream *connect.Cli
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("missing event field"))
 		}
 
-		if err := svc.broker.Publish(stream.Msg().Event.TypeUrl, stream.Msg().Event.Value); err != nil {
+		if err := svc.broker.Publish(stream.Msg()); err != nil {
 			return nil, err
 		}
 	}

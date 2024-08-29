@@ -41,33 +41,35 @@ func main() {
 	}
 
 	// TODO(ppacher): privacy-interceptor
-
-	roleClient := idmv1connect.NewRoleServiceClient(http.DefaultClient, cfg.IdmURL)
-
-	authInterceptor := auth.NewAuthAnnotationInterceptor(
-		protoregistry.GlobalFiles,
-		auth.NewIDMRoleResolver(roleClient),
-		func(ctx context.Context, req connect.AnyRequest) (auth.RemoteUser, error) {
-			serverKey, _ := ctx.Value(serverContextKey).(string)
-
-			if serverKey == "admin" {
-				return auth.RemoteUser{
-					ID:          "service-account",
-					DisplayName: req.Peer().Addr,
-					RoleIDs:     []string{"idm_superuser"}, // FIXME(ppacher): use a dedicated manager role for this
-					Admin:       true,
-				}, nil
-			}
-
-			return auth.RemoteHeaderExtractor(ctx, req)
-		},
-	)
-
 	interceptors := connect.WithInterceptors(
 		log.NewLoggingInterceptor(),
-		authInterceptor,
 		validator.NewInterceptor(protoValidator),
 	)
+
+	if cfg.IdmURL != "" {
+		roleClient := idmv1connect.NewRoleServiceClient(http.DefaultClient, cfg.IdmURL)
+
+		authInterceptor := auth.NewAuthAnnotationInterceptor(
+			protoregistry.GlobalFiles,
+			auth.NewIDMRoleResolver(roleClient),
+			func(ctx context.Context, req connect.AnyRequest) (auth.RemoteUser, error) {
+				serverKey, _ := ctx.Value(serverContextKey).(string)
+
+				if serverKey == "admin" {
+					return auth.RemoteUser{
+						ID:          "service-account",
+						DisplayName: req.Peer().Addr,
+						RoleIDs:     []string{"idm_superuser"}, // FIXME(ppacher): use a dedicated manager role for this
+						Admin:       true,
+					}, nil
+				}
+
+				return auth.RemoteHeaderExtractor(ctx, req)
+			},
+		)
+
+		interceptors = connect.WithOptions(interceptors, connect.WithInterceptors(authInterceptor))
+	}
 
 	corsConfig := cors.Config{
 		AllowedOrigins:   cfg.AllowedOrigins,
