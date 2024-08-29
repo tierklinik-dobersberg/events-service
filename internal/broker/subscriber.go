@@ -46,6 +46,8 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 	}()
 
 	go func() {
+		defer s.log.Info("receive loop finished")
+
 		for {
 			msg, err := s.stream.Receive()
 			if err != nil {
@@ -77,6 +79,8 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 			break
 		}
 	}
+
+	s.log.Info("subscription completed")
 
 	return nil
 }

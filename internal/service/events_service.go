@@ -34,6 +34,8 @@ func (fb *fakeBidiStream) Receive() (*eventsv1.SubscribeRequest, error) {
 
 	val := fb.Request.Msg.TypeUrls[fb.iter]
 
+	fb.iter++
+
 	return &eventsv1.SubscribeRequest{
 		Kind: &eventsv1.SubscribeRequest_Subscribe{
 			Subscribe: val,
