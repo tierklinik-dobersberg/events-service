@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 
 	connect "github.com/bufbuild/connect-go"
@@ -19,12 +20,38 @@ type EventsService struct {
 	l      *slog.Logger
 }
 
+type fakeBidiStream struct {
+	*connect.ServerStream[eventsv1.Event]
+	*connect.Request[eventsv1.SubscribeOnceRequest]
+
+	iter int
+}
+
+func (fb *fakeBidiStream) Receive() (*eventsv1.SubscribeRequest, error) {
+	if fb.iter >= len(fb.Msg.TypeUrls) {
+		return nil, io.EOF
+	}
+
+	val := fb.Request.Msg.TypeUrls[fb.iter]
+
+	return &eventsv1.SubscribeRequest{
+		Kind: &eventsv1.SubscribeRequest_Subscribe{
+			Subscribe: val,
+		},
+	}, nil
+}
+
 func NewEventsService(broker *broker.Broker) (*EventsService, error) {
 	return &EventsService{broker: broker, l: slog.Default().WithGroup("service")}, nil
 }
 
-func (svc *EventsService) Subscribe(ctx context.Context, stream broker.SubscriberStream) error {
+func (svc *EventsService) Subscribe(ctx context.Context, stream *connect.BidiStream[eventsv1.SubscribeRequest, eventsv1.Event]) error {
 	subscriber := broker.NewSubscriber(stream, svc.broker)
+	return subscriber.Handle(ctx)
+}
+
+func (svc *EventsService) SubscribeOnce(ctx context.Context, req *connect.Request[eventsv1.SubscribeOnceRequest], stream *connect.ServerStream[eventsv1.Event]) error {
+	subscriber := broker.NewSubscriber(&fakeBidiStream{stream, req, 0}, svc.broker)
 	return subscriber.Handle(ctx)
 }
 

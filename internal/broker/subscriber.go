@@ -10,7 +10,11 @@ import (
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 )
 
-type SubscriberStream = *connect.BidiStream[eventsv1.SubscribeRequest, eventsv1.Event]
+type SubscriberStream interface {
+	Send(*eventsv1.Event) error
+	Receive() (*eventsv1.SubscribeRequest, error)
+	Peer() connect.Peer
+}
 
 type Subscriber struct {
 	stream SubscriberStream
