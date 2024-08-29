@@ -13,8 +13,8 @@ func (bc *blockingClient) Subscribe(topic string, qos byte, handler mqtt.Message
 	return t.Error()
 }
 
-func (bc *blockingClient) Publish(topic string, qos byte, payload []byte) error {
-	t := bc.conn.Publish(topic, qos, false, payload)
+func (bc *blockingClient) Publish(topic string, qos byte, retained bool, payload []byte) error {
+	t := bc.conn.Publish(topic, qos, retained, payload)
 	t.Wait()
 
 	return t.Error()

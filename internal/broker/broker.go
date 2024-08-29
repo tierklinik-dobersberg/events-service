@@ -2,6 +2,7 @@ package broker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -15,7 +16,7 @@ import (
 type BlockingMQTTClient interface {
 	Subscribe(string, byte, mqtt.MessageHandler) error
 	Unsubscribe(...string) error
-	Publish(string, byte, []byte) error
+	Publish(string, byte, bool, []byte) error
 }
 
 type Broker struct {
@@ -25,6 +26,8 @@ type Broker struct {
 	l         sync.RWMutex
 	receivers map[string][]chan *eventsv1.Event
 	topics    map[string]struct{}
+
+	retainedMsgs map[string]*eventsv1.Event
 
 	log *slog.Logger
 }
@@ -51,10 +54,11 @@ func NewMQTTBroker(ctx context.Context, u string) (*Broker, error) {
 
 func NewBroker(ctx context.Context, cli BlockingMQTTClient) (*Broker, error) {
 	broker := &Broker{
-		log:       slog.Default().With("subsystem", "broker"),
-		conn:      cli,
-		receivers: make(map[string][]chan *eventsv1.Event),
-		topics:    make(map[string]struct{}),
+		log:          slog.Default().With("subsystem", "broker"),
+		conn:         cli,
+		receivers:    make(map[string][]chan *eventsv1.Event),
+		topics:       make(map[string]struct{}),
+		retainedMsgs: make(map[string]*eventsv1.Event),
 	}
 
 	return broker, nil
@@ -88,6 +92,12 @@ func (b *Broker) Subscribe(typeUrl string, msgs chan *eventsv1.Event) {
 
 	b.receivers[typeUrl] = append(b.receivers[typeUrl], msgs)
 
+	// immediately send any retained message for that typeUrl
+	if msg, ok := b.retainedMsgs[typeUrl]; ok {
+		msgs <- msg
+	}
+
+	// start to actually subscribe to the topic
 	if _, ok := b.topics[typeUrl]; !ok {
 		go b.subscribe(typeUrl)
 	}
@@ -133,6 +143,7 @@ func (b *Broker) UnsubscribeAll(msgs chan *eventsv1.Event) {
 	if len(topicCleanup) > 0 {
 		for _, t := range topicCleanup {
 			delete(b.topics, t)
+			delete(b.retainedMsgs, t)
 		}
 
 		go func() {
@@ -162,12 +173,12 @@ func (b *Broker) Publish(evt *eventsv1.Event) error {
 	defer b.connLock.Unlock()
 
 	if b.conn == nil {
-		return fmt.Errorf("not yet connected, please try again later.")
+		return errors.New("not yet connected, please try again later.")
 	}
 
 	topic := makeTopic(evt.Event.TypeUrl)
 
-	if err := b.conn.Publish(topic, 0, blob); err != nil {
+	if err := b.conn.Publish(topic, 0, evt.Retained, blob); err != nil {
 		return fmt.Errorf("failed to publish message: %w", err)
 	}
 
@@ -189,6 +200,12 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 
 	b.l.RLock()
 	defer b.l.RUnlock()
+
+	if msg.Retained() {
+		pb.Retained = true
+
+		b.retainedMsgs[typeUrl] = pb
+	}
 
 	for _, m := range b.receivers[typeUrl] {
 		m <- proto.Clone(pb).(*eventsv1.Event)
