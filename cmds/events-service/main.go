@@ -20,6 +20,9 @@ import (
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
 	"google.golang.org/protobuf/reflect/protoregistry"
+
+	// Import all proto files from tkd/apis
+	_ "github.com/tierklinik-dobersberg/apis/proto"
 )
 
 var serverContextKey = struct{ S string }{S: "serverContextKey"}
