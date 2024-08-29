@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -183,16 +184,19 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 		return
 	}
 
-	b.log.Info("received new event from mqtt", "typeUrl", pb.Event.TypeUrl, "topic", msg.Topic())
+	typeUrl := strings.TrimPrefix(pb.Event.TypeUrl, "type.googleapis.com/")
+	b.log.Info("received new event from mqtt", "typeUrl", typeUrl, "topic", msg.Topic())
 
 	b.l.RLock()
 	defer b.l.RUnlock()
 
-	for _, m := range b.receivers[pb.Event.TypeUrl] {
+	for _, m := range b.receivers[typeUrl] {
 		m <- proto.Clone(pb).(*eventsv1.Event)
 	}
 }
 
 func makeTopic(typeUrl string) string {
+	typeUrl = strings.TrimPrefix(typeUrl, "type.googleapis.com/")
+
 	return fmt.Sprintf("cis/protobuf/events/%s", typeUrl)
 }

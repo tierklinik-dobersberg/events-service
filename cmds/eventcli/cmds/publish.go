@@ -8,6 +8,7 @@ import (
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/cli"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -18,16 +19,17 @@ func GetPublishCommand(root *cli.Root) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			c := eventsv1connect.NewEventServiceClient(cli.NewInsecureHttp2Client(), server)
 
-			pb, err := anypb.New(&commonv1.DayTime{
+			dt := &commonv1.DayTime{
 				Hour:   8,
-				Minute: 30,
-			})
+				Minute: 27,
+			}
+			pb, err := anypb.New(dt)
 
 			if err != nil {
 				logrus.Fatal(err.Error())
 			}
 
-			logrus.Infof("publishing %q", pb.TypeUrl)
+			logrus.Infof("publishing %q", proto.MessageName(dt))
 			_, err = c.Publish(root.Context(), connect.NewRequest(&eventsv1.Event{
 				Event: pb,
 			}))
