@@ -78,6 +78,8 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 				continue
 			}
 
+			slog.Info("running automation for event", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
+
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				callable(nil, r.ToValue(o))
 			})
