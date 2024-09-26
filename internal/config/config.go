@@ -11,7 +11,12 @@ type Config struct {
 	ListenAddress      string   `env:"LISTEN, default=:8090"`
 	AdminListenAddress string   `env:"ADMIN_LISTEN, default=:8091"`
 	AllowedOrigins     []string `env:"ALLOWED_ORIGINS, default=*"`
-	IdmURL             string   `env:"IDM_URL"`
+
+	ScriptPath     string `env:"AUTOMATION_PATH"`
+	IdmURL         string `env:"IDM_URL"`
+	RosterURL      string `env:"ROSTER_URL"`
+	TaskServiceURL string `env:"TASK_SERVICE"`
+	CallServiceURL string `env:"CALL_SERVICE"`
 }
 
 func LoadConfig(ctx context.Context) (*Config, error) {

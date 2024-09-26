@@ -11,11 +11,15 @@ import (
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
+	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/pbx3cx/v1/pbx3cxv1connect"
+	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1/tasksv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
+	"github.com/tierklinik-dobersberg/apis/pkg/cli"
 	"github.com/tierklinik-dobersberg/apis/pkg/cors"
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
@@ -112,6 +116,71 @@ func main() {
 
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	// setup automation framework
+	if cfg.ScriptPath != "" {
+		// Prepare the automation framework
+		engineOptions := []automation.EngineOption{
+			automation.WithFetchModule(),
+		}
+
+		httpCli := cli.NewInsecureHttp2Client()
+
+		if cfg.IdmURL != "" {
+			engineOptions = append(engineOptions, automation.WithUsersModule(ctx, idmv1connect.NewUserServiceClient(httpCli, cfg.IdmURL)))
+			engineOptions = append(engineOptions, automation.WithRolesModule(ctx, idmv1connect.NewRoleServiceClient(httpCli, cfg.IdmURL)))
+		}
+
+		if cfg.RosterURL != "" {
+			engineOptions = append(engineOptions,
+				automation.WithRolesModule(ctx, idmv1connect.NewRoleServiceClient(httpCli, cfg.RosterURL)),
+			)
+		}
+
+		if cfg.CallServiceURL != "" {
+			engineOptions = append(engineOptions,
+				automation.WithCallModule(ctx, pbx3cxv1connect.NewCallServiceClient(httpCli, cfg.CallServiceURL)),
+			)
+			engineOptions = append(engineOptions,
+				automation.WithVoiceMailModule(ctx, pbx3cxv1connect.NewVoiceMailServiceClient(httpCli, cfg.CallServiceURL)),
+			)
+		}
+
+		if cfg.TaskServiceURL != "" {
+			engineOptions = append(engineOptions,
+				automation.WithBoardModule(ctx, tasksv1connect.NewBoardServiceClient(httpCli, cfg.TaskServiceURL)),
+			)
+			engineOptions = append(engineOptions,
+				automation.WithTaskModule(ctx, tasksv1connect.NewTaskServiceClient(httpCli, cfg.TaskServiceURL)),
+			)
+		}
+
+		dirEntries, err := os.ReadDir(cfg.ScriptPath)
+		if err != nil {
+			slog.Error("failed to read automation scripts", "error", err)
+		} else {
+			for _, f := range dirEntries {
+				if f.IsDir() {
+					continue
+				}
+				content, err := os.ReadFile(f.Name())
+				if err != nil {
+					slog.Error("failed to read script file", "error", err, "file", f.Name())
+					continue
+				}
+
+				engine, err := automation.New(f.Name(), b, engineOptions...)
+				if err != nil {
+					slog.Error("failed to create engine for script file", "error", err, "file", f.Name())
+					continue
+				}
+
+				if err := engine.RunScript(string(content)); err != nil {
+					slog.Error("failed to initialize engine", "error", err)
+				}
+			}
+		}
 	}
 
 	// Create the server
