@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	connect "github.com/bufbuild/connect-go"
@@ -164,7 +165,9 @@ func main() {
 				if f.IsDir() {
 					continue
 				}
-				content, err := os.ReadFile(f.Name())
+				path := filepath.Join(cfg.ScriptPath, f.Name())
+
+				content, err := os.ReadFile(path)
 				if err != nil {
 					slog.Error("failed to read script file", "error", err, "file", f.Name())
 					continue
