@@ -11,22 +11,31 @@ type Engine struct {
 	name     string
 	loop     *eventloop.EventLoop
 	Registry *require.Registry
+	ldr      require.SourceLoader
 	core     *CoreModule
 }
 
 type EngineOption func(*Engine)
 
+func WithSourceLoader(ldr require.SourceLoader) EngineOption {
+	return func(e *Engine) {
+		e.ldr = ldr
+	}
+}
+
 func New(name string, broker *broker.Broker, opts ...EngineOption) (*Engine, error) {
+	engine := &Engine{
+		ldr: require.DefaultSourceLoader,
+	}
+
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
-		return require.DefaultSourceLoader(path)
+		return engine.ldr(path)
 	}))
 
 	loop := eventloop.NewEventLoop(eventloop.WithRegistry(registry))
 
-	engine := &Engine{
-		loop:     loop,
-		Registry: registry,
-	}
+	engine.loop = loop
+	engine.Registry = registry
 
 	core := NewCoreModule(engine, broker)
 	engine.core = core
