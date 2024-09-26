@@ -16,7 +16,7 @@ COPY ./ ./
 
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -v -ldflags "-s -w -linkmode external -extldflags -static" -o /go/bin/events-service ./cmds/events-service
 
-FROM gcr.io/distroless/static
+FROM gcr.io/distroless/base
 
 COPY --from=gobuild /go/bin/events-service /go/bin/events-service
 EXPOSE 8090
