@@ -14,7 +14,7 @@ RUN go mod verify
 
 COPY ./ ./
 
-RUN go build -o /go/bin/events-service ./cmds/events-service
+RUN CGO_ENABLED=0 go build -o /go/bin/events-service ./cmds/events-service
 
 FROM gcr.io/distroless/base-debian12
 
