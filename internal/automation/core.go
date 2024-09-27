@@ -47,6 +47,8 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 }
 
 func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, error) {
+	slog.Info("automation: new schedule registered", "schedule", schedule, "name", c.engine.name)
+
 	res, err := c.scheduler.AddFunc(schedule, func() {
 		c.engine.RunAndBlock(func(r *goja.Runtime) error {
 			_, err := callable(nil)
@@ -68,10 +70,15 @@ func (c *CoreModule) clearSchedule(id int) {
 func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 	msgs := make(chan *eventsv1.Event, 100)
 
+	slog.Info("automation: script is subscribing to event topic", "event", event, "name", c.engine.name)
+
 	c.broker.Subscribe(event, msgs)
+
+	slog.Info("automation: script successfully subscribed to event topic", "event", event, "name", c.engine.name)
 
 	go func() {
 		for m := range msgs {
+			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
 			o, err := convertProtoMessage(m)
 			if err != nil {
 				slog.Error("failed to convert protobuf message", "error", err)

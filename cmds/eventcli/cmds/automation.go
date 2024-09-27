@@ -51,7 +51,10 @@ func GetAutomationCommand(root *cli.Root) *cobra.Command {
 				logrus.Fatal(err)
 			}
 
-			engine.RunScript(string(content))
+			logrus.Info("running script ....")
+			if err := engine.RunScript(string(content)); err != nil {
+				logrus.Fatal(err)
+			}
 
 			engine.Stop()
 		},
