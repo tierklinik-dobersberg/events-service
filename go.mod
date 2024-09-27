@@ -1,6 +1,6 @@
 module github.com/tierklinik-dobersberg/events-service
 
-go 1.23.0
+go 1.22
 
 require (
 	github.com/bufbuild/connect-go v1.10.0
