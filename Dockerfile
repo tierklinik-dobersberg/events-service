@@ -16,7 +16,7 @@ COPY ./ ./
 
 RUN go build -o /go/bin/events-service ./cmds/events-service
 
-FROM gcr.io/distroless/base
+FROM gcr.io/distroless/base-debian12
 
 COPY --from=gobuild /go/bin/events-service /go/bin/events-service
 EXPOSE 8090
