@@ -26,7 +26,7 @@ func WithBoardModule(ctx context.Context, ep string) EngineOption {
 }
 
 func WithUsersModule(ctx context.Context, ep string) EngineOption {
-	return WithConnectService("users", ep, idmv1.File_tkd_idm_v1_user_proto.Services().Get(0))
+	return WithConnectService("users", ep, idmv1.File_tkd_idm_v1_user_service_proto.Services().Get(0))
 }
 
 func WithRolesModule(ctx context.Context, ep string) EngineOption {
