@@ -131,6 +131,7 @@ func main() {
 		if cfg.IdmURL != "" {
 			engineOptions = append(engineOptions, automation.WithUsersModule(ctx, idmv1connect.NewUserServiceClient(httpCli, cfg.IdmURL)))
 			engineOptions = append(engineOptions, automation.WithRolesModule(ctx, idmv1connect.NewRoleServiceClient(httpCli, cfg.IdmURL)))
+			engineOptions = append(engineOptions, automation.WithNotifyModule(ctx, idmv1connect.NewNotifyServiceClient(httpCli, cfg.IdmURL)))
 		}
 
 		if cfg.RosterURL != "" {

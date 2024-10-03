@@ -46,7 +46,7 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 	}()
 
 	go func() {
-		defer s.log.Info("receive loop finished")
+		defer s.log.Debug("receive loop finished")
 
 		for {
 			msg, err := s.stream.Receive()
