@@ -64,6 +64,9 @@ func (c *client) do(in *goja.Object) (any, error) {
 		return nil, err
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
 	slog.Info("sending connect RPC request", "endpoint", c.endpoint)
 
 	response, err := c.cli.Do(req)
