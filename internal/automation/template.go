@@ -2,8 +2,6 @@ package automation
 
 import (
 	"bytes"
-	"fmt"
-	"log/slog"
 	"text/template"
 
 	"github.com/dop251/goja"
@@ -15,10 +13,14 @@ type templateInstance struct {
 
 func WithTemplateModule() EngineOption {
 	return func(e *Engine) {
-		e.RegisterNativeModuleHelper("template", map[string]any{
-			"new": func(runtime *goja.Runtime, call goja.ConstructorCall) *goja.Object {
-				slog.Info("template.new", "rt", fmt.Sprintf("%T", runtime), "call", fmt.Sprintf("%T", call))
+		var rt *goja.Runtime
+		e.RunAndBlock(func(r *goja.Runtime) error {
+			rt = r
+			return nil
+		})
 
+		e.RegisterNativeModuleHelper("template", map[string]any{
+			"Template": func(call goja.ConstructorCall) *goja.Object {
 				instance := &templateInstance{
 					fn: make(map[string]goja.Callable),
 				}
@@ -29,17 +31,12 @@ func WithTemplateModule() EngineOption {
 				})
 
 				call.This.Set("exec", func(t string, args any) (string, error) {
-					tmp, err := template.New(e.name).Parse(t)
-					if err != nil {
-						return "", err
-					}
-
 					fnMap := template.FuncMap{}
 					for key, val := range instance.fn {
 						fnMap[key] = func(args ...any) any {
 							gojaArgs := make([]goja.Value, len(args))
 							for i, a := range args {
-								gojaArgs[i] = runtime.ToValue(a)
+								gojaArgs[i] = rt.ToValue(a)
 							}
 
 							res, err := val(call.This, gojaArgs...)
@@ -51,8 +48,13 @@ func WithTemplateModule() EngineOption {
 						}
 					}
 
+					tmp, err := template.New(e.name).Funcs(fnMap).Parse(t)
+					if err != nil {
+						return "", err
+					}
+
 					var buf = new(bytes.Buffer)
-					if err := tmp.Funcs(fnMap).Execute(buf, args); err != nil {
+					if err := tmp.Execute(buf, args); err != nil {
 						return "", err
 					}
 
