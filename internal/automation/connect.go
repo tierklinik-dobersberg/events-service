@@ -92,7 +92,19 @@ func (c *client) do(in *goja.Object) (any, error) {
 
 	slog.Info("received response from connect service", "body", fmt.Sprintf("%+v", res))
 
-	return res, nil
+	// create a goja value
+
+	protoBlob, err := protojson.Marshal(res)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]any)
+	if err := json.Unmarshal(protoBlob, &m); err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
 
 func objToProto(in *goja.Object, out protoreflect.MessageDescriptor) (proto.Message, error) {
