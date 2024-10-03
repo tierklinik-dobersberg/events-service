@@ -20,18 +20,13 @@ func WithFetchModule() EngineOption {
 
 func WithTaskModule(ctx context.Context, cli tasksv1connect.TaskServiceClient) EngineOption {
 	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("tasks", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add task module")
-			}
-
-			e.Set("queryView", wrapConnectMethod(cli.QueryView))
-			e.Set("updateTask", wrapConnectMethod(cli.UpdateTask))
-			e.Set("completeTask", wrapConnectMethod(cli.CompleteTask))
-			e.Set("deleteTask", wrapConnectMethod(cli.DeleteTask))
-			e.Set("assignTask", wrapConnectMethod(cli.AssignTask))
-			e.Set("getTimeline", wrapConnectMethod(cli.GetTimeline))
+		e.RegisterNativeModuleHelper("tasks", map[string]any{
+			"queryView":    wrapConnectMethod(cli.QueryView),
+			"updateTask":   wrapConnectMethod(cli.UpdateTask),
+			"completeTask": wrapConnectMethod(cli.CompleteTask),
+			"deleteTask":   wrapConnectMethod(cli.DeleteTask),
+			"assignTask":   wrapConnectMethod(cli.AssignTask),
+			"getTimeline":  wrapConnectMethod(cli.GetTimeline),
 		})
 	}
 }

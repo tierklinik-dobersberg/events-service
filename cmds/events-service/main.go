@@ -126,6 +126,7 @@ func main() {
 			automation.WithFetchModule(),
 			automation.WithFileSystemModule(os.DirFS(cfg.ScriptPath)),
 			automation.WithTemplateModule(),
+			automation.WithDateModule(),
 		}
 
 		httpCli := cli.NewInsecureHttp2Client()

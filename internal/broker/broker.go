@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
@@ -208,9 +209,11 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 	}
 
 	for _, m := range b.receivers[typeUrl] {
-		b.log.Info("forwarding event to channel %v", m)
-
-		m <- proto.Clone(pb).(*eventsv1.Event)
+		select {
+		case m <- proto.Clone(pb).(*eventsv1.Event):
+		case <-time.After(time.Second * 5):
+			b.log.Info("failed to dispatch event, receiver busy")
+		}
 	}
 }
 

@@ -13,7 +13,7 @@ require (
 	github.com/sethvargo/go-envconfig v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
-	github.com/tierklinik-dobersberg/apis v0.10.0
+	github.com/tierklinik-dobersberg/apis v0.10.1-0.20241003085245-aa93aa570012
 	google.golang.org/protobuf v1.34.2
 )
 
