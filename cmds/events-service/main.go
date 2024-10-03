@@ -13,6 +13,7 @@ import (
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/pbx3cx/v1/pbx3cxv1connect"
+	tasksv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1/tasksv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
 	"github.com/tierklinik-dobersberg/apis/pkg/cli"
@@ -158,6 +159,10 @@ func main() {
 			)
 			engineOptions = append(engineOptions,
 				automation.WithTaskModule(ctx, tasksv1connect.NewTaskServiceClient(httpCli, cfg.TaskServiceURL)),
+			)
+
+			engineOptions = append(engineOptions,
+				automation.WithConnectService("tasks2", cfg.TaskServiceURL, tasksv1.File_tkd_tasks_v1_tasks_proto.Services().Get(0)),
 			)
 		}
 
