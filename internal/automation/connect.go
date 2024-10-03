@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -72,8 +71,6 @@ func (c *client) do(in *goja.Object) (any, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	slog.Info("sending connect RPC request", "endpoint", c.endpoint)
-
 	response, err := c.cli.Do(req)
 	if err != nil {
 		return nil, err
@@ -94,8 +91,6 @@ func (c *client) do(in *goja.Object) (any, error) {
 	if err := protojson.Unmarshal(body, res); err != nil {
 		return nil, err
 	}
-
-	slog.Info("received response from connect service", "body", fmt.Sprintf("%+v", res))
 
 	// create a goja value
 
