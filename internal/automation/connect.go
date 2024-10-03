@@ -121,3 +121,17 @@ func objToProto(in *goja.Object, out protoreflect.MessageDescriptor) (proto.Mess
 
 	return msg, nil
 }
+
+func convertProtoMessage(msg proto.Message) (any, error) {
+	jsonBlob, err := protojson.Marshal(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(jsonBlob, &result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

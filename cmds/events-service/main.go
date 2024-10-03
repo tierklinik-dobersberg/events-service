@@ -12,11 +12,7 @@ import (
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/pbx3cx/v1/pbx3cxv1connect"
-	tasksv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1/tasksv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
-	"github.com/tierklinik-dobersberg/apis/pkg/cli"
 	"github.com/tierklinik-dobersberg/apis/pkg/cors"
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
@@ -130,39 +126,32 @@ func main() {
 			automation.WithDateModule(),
 		}
 
-		httpCli := cli.NewInsecureHttp2Client()
-
 		if cfg.IdmURL != "" {
-			engineOptions = append(engineOptions, automation.WithUsersModule(ctx, idmv1connect.NewUserServiceClient(httpCli, cfg.IdmURL)))
-			engineOptions = append(engineOptions, automation.WithRolesModule(ctx, idmv1connect.NewRoleServiceClient(httpCli, cfg.IdmURL)))
-			engineOptions = append(engineOptions, automation.WithNotifyModule(ctx, idmv1connect.NewNotifyServiceClient(httpCli, cfg.IdmURL)))
+			engineOptions = append(
+				engineOptions,
+				automation.WithUsersModule(ctx, cfg.IdmURL),
+				automation.WithRolesModule(ctx, cfg.IdmURL),
+				automation.WithNotifyModule(ctx, cfg.IdmURL),
+			)
 		}
 
 		if cfg.RosterURL != "" {
 			engineOptions = append(engineOptions,
-				automation.WithRolesModule(ctx, idmv1connect.NewRoleServiceClient(httpCli, cfg.RosterURL)),
+				automation.WithRolesModule(ctx, cfg.RosterURL),
 			)
 		}
 
 		if cfg.CallServiceURL != "" {
 			engineOptions = append(engineOptions,
-				automation.WithCallModule(ctx, pbx3cxv1connect.NewCallServiceClient(httpCli, cfg.CallServiceURL)),
-			)
-			engineOptions = append(engineOptions,
-				automation.WithVoiceMailModule(ctx, pbx3cxv1connect.NewVoiceMailServiceClient(httpCli, cfg.CallServiceURL)),
+				automation.WithCallModule(ctx, cfg.CallServiceURL),
+				automation.WithVoiceMailModule(ctx, cfg.CallServiceURL),
 			)
 		}
 
 		if cfg.TaskServiceURL != "" {
 			engineOptions = append(engineOptions,
-				automation.WithBoardModule(ctx, tasksv1connect.NewBoardServiceClient(httpCli, cfg.TaskServiceURL)),
-			)
-			engineOptions = append(engineOptions,
-				automation.WithTaskModule(ctx, tasksv1connect.NewTaskServiceClient(httpCli, cfg.TaskServiceURL)),
-			)
-
-			engineOptions = append(engineOptions,
-				automation.WithConnectService("tasks2", cfg.TaskServiceURL, tasksv1.File_tkd_tasks_v1_tasks_proto.Services().Get(0)),
+				automation.WithBoardModule(ctx, cfg.TaskServiceURL),
+				automation.WithTaskModule(ctx, cfg.TaskServiceURL),
 			)
 		}
 

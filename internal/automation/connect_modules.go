@@ -3,13 +3,12 @@ package automation
 import (
 	"context"
 
-	"github.com/dop251/goja"
 	"github.com/elazarl/goproxy"
 	"github.com/olebedev/gojax/fetch"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/pbx3cx/v1/pbx3cxv1connect"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/roster/v1/rosterv1connect"
-	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1/tasksv1connect"
+	idmv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1"
+	pbx3cxv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/pbx3cx/v1"
+	rosterv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/roster/v1"
+	tasksv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/tasks/v1"
 )
 
 func WithFetchModule() EngineOption {
@@ -18,127 +17,34 @@ func WithFetchModule() EngineOption {
 	}
 }
 
-func WithTaskModule(ctx context.Context, cli tasksv1connect.TaskServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.RegisterNativeModuleHelper("tasks", map[string]any{
-			"queryView":    wrapConnectMethod(cli.QueryView),
-			"updateTask":   wrapConnectMethod(cli.UpdateTask),
-			"completeTask": wrapConnectMethod(cli.CompleteTask),
-			"deleteTask":   wrapConnectMethod(cli.DeleteTask),
-			"assignTask":   wrapConnectMethod(cli.AssignTask),
-			"getTimeline":  wrapConnectMethod(cli.GetTimeline),
-		})
-	}
+func WithTaskModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("tasks", ep, tasksv1.File_tkd_tasks_v1_tasks_proto.Services().Get(0))
 }
 
-func WithBoardModule(ctx context.Context, cli tasksv1connect.BoardServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("boards", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add boards module")
-			}
-
-			e.Set("listBoards", wrapConnectMethod(cli.ListBoards))
-			e.Set("getBoard", wrapConnectMethod(cli.GetBoard))
-		})
-	}
+func WithBoardModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("boards", ep, tasksv1.File_tkd_tasks_v1_boards_proto.Services().Get(0))
 }
 
-func WithUsersModule(ctx context.Context, cli idmv1connect.UserServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("users", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add users module")
-			}
-
-			e.Set("listUsers", wrapConnectMethod(cli.ListUsers))
-			e.Set("getUser", wrapConnectMethod(cli.GetUser))
-		})
-	}
+func WithUsersModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("users", ep, idmv1.File_tkd_idm_v1_user_proto.Services().Get(0))
 }
 
-func WithRolesModule(ctx context.Context, cli idmv1connect.RoleServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("roles", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add users module")
-			}
-
-			e.Set("listRoles", wrapConnectMethod(cli.ListRoles))
-			e.Set("getRole", wrapConnectMethod(cli.GetRole))
-		})
-	}
+func WithRolesModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("roles", ep, idmv1.File_tkd_idm_v1_role_service_proto.Services().Get(0))
 }
 
-func WithNotifyModule(ctx context.Context, cli idmv1connect.NotifyServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("notify", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add users module")
-			}
-
-			e.Set("send", wrapConnectMethod(cli.SendNotification))
-		})
-	}
+func WithNotifyModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("notify", ep, idmv1.File_tkd_idm_v1_notify_service_proto.Services().Get(0))
 }
 
-func WithCallModule(ctx context.Context, cli pbx3cxv1connect.CallServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("calls", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add users module")
-			}
-
-			e.Set("listInboundNumbers", wrapConnectMethod(cli.ListInboundNumber))
-			e.Set("createOverwrite", wrapConnectMethod(cli.CreateOverwrite))
-			e.Set("deleteOverwrite", wrapConnectMethod(cli.DeleteOverwrite))
-			e.Set("getOverwrite", wrapConnectMethod(cli.GetOverwrite))
-			e.Set("searchCallLogs", wrapConnectMethod(cli.SearchCallLogs))
-			e.Set("getOnCall", wrapConnectMethod(cli.GetOnCall))
-		})
-	}
+func WithCallModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("calls", ep, pbx3cxv1.File_tkd_pbx3cx_v1_calllog_proto.Services().Get(0))
 }
 
-func WithVoiceMailModule(ctx context.Context, cli pbx3cxv1connect.VoiceMailServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("voicemails", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add voicemails module")
-			}
-
-			e.Set("listMailboxes", wrapConnectMethod(cli.ListMailboxes))
-			e.Set("getVoiceMail", wrapConnectMethod(cli.GetVoiceMail))
-			e.Set("listVoiceMails", wrapConnectMethod(cli.ListVoiceMails))
-			e.Set("markVoiceMails", wrapConnectMethod(cli.MarkVoiceMails))
-		})
-	}
+func WithVoiceMailModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("calls", ep, pbx3cxv1.File_tkd_pbx3cx_v1_voicemail_proto.Services().Get(0))
 }
 
-func WithRosterModule(ctx context.Context, cli rosterv1connect.RosterServiceClient) EngineOption {
-	return func(e *Engine) {
-		e.Registry.RegisterNativeModule("roster", func(r *goja.Runtime, o *goja.Object) {
-			e, ok := o.Get("exports").(*goja.Object)
-			if !ok {
-				panic("failed to add roster module")
-			}
-
-			e.Set("analyzeWorkTime", wrapConnectMethod(cli.AnalyzeWorkTime))
-			e.Set("approveRoster", wrapConnectMethod(cli.ApproveRoster))
-			e.Set("deleteRoster", wrapConnectMethod(cli.DeleteRoster))
-			e.Set("exportRoster", wrapConnectMethod(cli.ExportRoster))
-			e.Set("getRequiredShifts", wrapConnectMethod(cli.GetRequiredShifts))
-			e.Set("getRoster", wrapConnectMethod(cli.GetRoster))
-			e.Set("getUserShifts", wrapConnectMethod(cli.GetUserShifts))
-			e.Set("getWorkingStaff2", wrapConnectMethod(cli.GetWorkingStaff2))
-			e.Set("listRosterTypes", wrapConnectMethod(cli.ListRosterTypes))
-			e.Set("listShiftTags", wrapConnectMethod(cli.ListShiftTags))
-			e.Set("saveRoster", wrapConnectMethod(cli.SaveRoster))
-		})
-	}
+func WithRosterModule(ctx context.Context, ep string) EngineOption {
+	return WithConnectService("calls", ep, rosterv1.File_tkd_roster_v1_roster_proto.Services().Get(0))
 }
