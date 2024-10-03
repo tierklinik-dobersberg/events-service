@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -34,7 +35,7 @@ func WithConnectService(name, ep string, desc protoreflect.ServiceDescriptor) En
 			methodName := strings.ToLower(string(mdesc.Name()[0])) + string(mdesc.Name()[1:])
 
 			cli := &client{
-				endpoint: ep + "/" + string(mdesc.FullName()),
+				endpoint: ep + "/" + string(desc.FullName()) + "/" + string(mdesc.Name()),
 				request:  mdesc.Input(),
 				response: mdesc.Output(),
 				cli:      cli.NewInsecureHttp2Client(),
@@ -62,6 +63,8 @@ func (c *client) do(in *goja.Object) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	slog.Info("sending connect RPC request", "endpoint", c.endpoint)
 
 	response, err := c.cli.Do(req)
 	if err != nil {
