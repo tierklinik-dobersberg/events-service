@@ -90,6 +90,8 @@ func (c *client) do(in *goja.Object) (any, error) {
 		return nil, err
 	}
 
+	slog.Info("received response from connect service", "body", fmt.Sprintf("%+v", res))
+
 	return res, nil
 }
 
