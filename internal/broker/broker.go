@@ -208,6 +208,8 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 	}
 
 	for _, m := range b.receivers[typeUrl] {
+		b.log.Info("forwarding event to channel %v", m)
+
 		m <- proto.Clone(pb).(*eventsv1.Event)
 	}
 }
