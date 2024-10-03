@@ -32,6 +32,11 @@ func WithConnectService(name, ep string, desc protoreflect.ServiceDescriptor) En
 		for mi := 0; mi < desc.Methods().Len(); mi++ {
 			mdesc := desc.Methods().Get(mi)
 
+			// Streaming is not yet supported
+			if mdesc.IsStreamingClient() || mdesc.IsStreamingServer() {
+				continue
+			}
+
 			methodName := strings.ToLower(string(mdesc.Name()[0])) + string(mdesc.Name()[1:])
 
 			cli := &client{
