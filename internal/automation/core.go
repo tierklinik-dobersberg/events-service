@@ -77,6 +77,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 	slog.Info("automation: script successfully subscribed to event topic", "event", event, "name", c.engine.name)
 
 	go func() {
+		defer slog.Info("automation: subscription loop closed", "name", c.engine.name)
 		for m := range msgs {
 			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
 			o, err := convertProtoMessage(m)

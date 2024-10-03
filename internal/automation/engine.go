@@ -25,7 +25,8 @@ func WithSourceLoader(ldr require.SourceLoader) EngineOption {
 
 func New(name string, broker *broker.Broker, opts ...EngineOption) (*Engine, error) {
 	engine := &Engine{
-		ldr: require.DefaultSourceLoader,
+		name: name,
+		ldr:  require.DefaultSourceLoader,
 	}
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
