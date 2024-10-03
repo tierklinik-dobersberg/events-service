@@ -124,6 +124,8 @@ func main() {
 		// Prepare the automation framework
 		engineOptions := []automation.EngineOption{
 			automation.WithFetchModule(),
+			automation.WithFileSystemModule(os.DirFS(cfg.ScriptPath)),
+			automation.WithTemplateModule(),
 		}
 
 		httpCli := cli.NewInsecureHttp2Client()

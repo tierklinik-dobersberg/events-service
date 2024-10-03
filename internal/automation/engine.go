@@ -85,3 +85,16 @@ func (e *Engine) RunScript(script string) error {
 func (e *Engine) Stop() int {
 	return e.loop.Stop()
 }
+
+func (e *Engine) RegisterNativeModuleHelper(name string, obj map[string]any) {
+	e.Registry.RegisterNativeModule(name, func(r *goja.Runtime, o *goja.Object) {
+		exports, ok := o.Get("exports").(*goja.Object)
+		if !ok {
+			panic("failed to get exports object")
+		}
+
+		for key, value := range obj {
+			exports.Set(key, value)
+		}
+	})
+}
