@@ -137,7 +137,7 @@ func main() {
 
 		if cfg.RosterURL != "" {
 			engineOptions = append(engineOptions,
-				automation.WithRolesModule(ctx, cfg.RosterURL),
+				automation.WithRosterModule(ctx, cfg.RosterURL),
 			)
 		}
 

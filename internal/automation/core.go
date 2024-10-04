@@ -1,6 +1,7 @@
 package automation
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -9,6 +10,9 @@ import (
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type CoreModule struct {
@@ -44,6 +48,7 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 	r.Set("schedule", c.schedule)
 	r.Set("clearSchedule", c.clearSchedule)
 	r.Set("on", c.onEvent)
+	r.Set("publish", c.publish)
 }
 
 func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, error) {
@@ -65,6 +70,32 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 
 func (c *CoreModule) clearSchedule(id int) {
 	c.scheduler.Remove(cron.EntryID(id))
+}
+
+func (c *CoreModule) publish(typeUrl string, obj *goja.Object) error {
+	d, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(typeUrl))
+	if err != nil {
+		return err
+	}
+
+	md, ok := d.(protoreflect.MessageDescriptor)
+	if !ok {
+		return fmt.Errorf("invalid type url")
+	}
+
+	msg, err := objToProto(obj, md)
+	if err != nil {
+		return err
+	}
+
+	evt, err := anypb.New(msg)
+	if err != nil {
+		return err
+	}
+
+	return c.broker.Publish(&eventsv1.Event{
+		Event: evt,
+	})
 }
 
 func (c *CoreModule) onEvent(event string, callable goja.Callable) {
