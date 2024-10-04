@@ -163,6 +163,11 @@ func main() {
 				if f.IsDir() {
 					continue
 				}
+
+				if filepath.Ext(f.Name()) != ".js" {
+					continue
+				}
+
 				path := filepath.Join(cfg.ScriptPath, f.Name())
 
 				content, err := os.ReadFile(path)
