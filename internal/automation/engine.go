@@ -1,6 +1,8 @@
 package automation
 
 import (
+	"path/filepath"
+
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -12,6 +14,7 @@ type Engine struct {
 	Registry *require.Registry
 	ldr      require.SourceLoader
 	core     *CoreModule
+	baseDir  string
 }
 
 type EngineOption func(*Engine)
@@ -22,6 +25,12 @@ func WithSourceLoader(ldr require.SourceLoader) EngineOption {
 	}
 }
 
+func WithBaseDirectory(dir string) EngineOption {
+	return func(e *Engine) {
+		e.baseDir = dir
+	}
+}
+
 func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	engine := &Engine{
 		name: name,
@@ -29,6 +38,10 @@ func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	}
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
+		if engine.baseDir != "" {
+			path = filepath.Join(engine.baseDir, path)
+		}
+
 		return engine.ldr(path)
 	}))
 

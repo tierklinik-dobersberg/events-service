@@ -124,6 +124,7 @@ func main() {
 			automation.WithFileSystemModule(os.DirFS(cfg.ScriptPath)),
 			automation.WithTemplateModule(),
 			automation.WithDateModule(),
+			automation.WithBaseDirectory(cfg.ScriptPath),
 		}
 
 		if cfg.IdmURL != "" {
