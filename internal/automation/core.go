@@ -9,20 +9,24 @@ import (
 	"github.com/dop251/goja"
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
-	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+type Broker interface {
+	Publish(*eventsv1.Event) error
+	Subscribe(string, chan *eventsv1.Event)
+}
+
 type CoreModule struct {
 	engine *Engine
-	broker *broker.Broker
+	broker Broker
 
 	scheduler *cron.Cron
 }
 
-func NewCoreModule(engine *Engine, broker *broker.Broker) *CoreModule {
+func NewCoreModule(engine *Engine, broker Broker) *CoreModule {
 	log := cron.PrintfLogger(slog.NewLogLogger(slog.NewTextHandler(os.Stderr, nil), slog.LevelInfo))
 
 	scheduler := cron.New(

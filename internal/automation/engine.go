@@ -4,7 +4,6 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
-	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 )
 
 type Engine struct {
@@ -23,7 +22,7 @@ func WithSourceLoader(ldr require.SourceLoader) EngineOption {
 	}
 }
 
-func New(name string, broker *broker.Broker, opts ...EngineOption) (*Engine, error) {
+func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	engine := &Engine{
 		name: name,
 		ldr:  require.DefaultSourceLoader,
