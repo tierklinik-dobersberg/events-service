@@ -30,8 +30,8 @@ func (*RootModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 	rt := vu.Runtime()
 
-	rt.Set("TextEncoder", instance.NewTextEncoder)
-	rt.Set("TextDecoder", instance.NewTextDecoder)
+	rt.GlobalObject().Set("TextEncoder", instance.NewTextEncoder)
+	rt.GlobalObject().Set("TextDecoder", instance.NewTextDecoder)
 
 	return nil, nil
 }
