@@ -24,33 +24,31 @@ type ConnectModule struct{}
 func (*ConnectModule) Name() string { return "connect" }
 
 func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
-	obj := vu.Runtime().NewObject()
-
 	cfg := vu.Config()
 
 	merr := new(multierror.Error)
 
 	if cfg.IdmURL != "" {
-		makeServiceClient(obj, "users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
-		makeServiceClient(obj, "roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
-		makeServiceClient(obj, "notify", vu, cfg.IdmURL, "tkd.idm.v1.NotiyService", merr)
+		makeServiceClient("users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
+		makeServiceClient("roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
+		makeServiceClient("notify", vu, cfg.IdmURL, "tkd.idm.v1.NotiyService", merr)
 	}
 
 	if cfg.RosterURL != "" {
-		makeServiceClient(obj, "roster", vu, cfg.RosterURL, "tkd.roster.v1.RosterService", merr)
-		makeServiceClient(obj, "offtime", vu, cfg.RosterURL, "tkd.roster.v1.OffTimeService", merr)
-		makeServiceClient(obj, "workshift", vu, cfg.RosterURL, "tkd.roster.v1.WorkShiftService", merr)
+		makeServiceClient("roster", vu, cfg.RosterURL, "tkd.roster.v1.RosterService", merr)
+		makeServiceClient("offtime", vu, cfg.RosterURL, "tkd.roster.v1.OffTimeService", merr)
+		makeServiceClient("workshift", vu, cfg.RosterURL, "tkd.roster.v1.WorkShiftService", merr)
 	}
 
 	if cfg.TaskServiceURL != "" {
-		makeServiceClient(obj, "tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
-		makeServiceClient(obj, "boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
+		makeServiceClient("tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
+		makeServiceClient("boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
 	}
 
-	return obj, nil
+	return nil, merr.ErrorOrNil()
 }
 
-func makeServiceClient(obj *goja.Object, pkgname string, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
+func makeServiceClient(pkgname string, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
 	serviceObj := vu.Runtime().NewObject()
 
 	d, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(serviceName))
@@ -85,7 +83,7 @@ func makeServiceClient(obj *goja.Object, pkgname string, vu modules.VU, ep strin
 		serviceObj.Set(methodName, cli.do)
 	}
 
-	obj.Set(pkgname, serviceObj)
+	vu.Runtime().Set(pkgname, serviceObj)
 }
 
 type client struct {

@@ -28,6 +28,7 @@ import (
 
 	// Import all javascript native modules
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/encoding"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fetch"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fs"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/template"
