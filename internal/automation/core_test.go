@@ -6,6 +6,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/stretchr/testify/require"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
+	"github.com/tierklinik-dobersberg/events-service/internal/config"
 )
 
 type mockBroker struct {
@@ -29,21 +30,21 @@ func (m *mockBroker) Subscribe(topic string, msgs chan *eventsv1.Event) {
 func Test_CoreModule(t *testing.T) {
 	done := make(chan struct{})
 
-	engine, err := New("", nil, func(e *Engine) {
-		e.RunAndBlock(func(r *goja.Runtime) error {
+	engine, err := New("", config.Config{}, nil, func(e *Engine) {
+		e.Run(func(r *goja.Runtime) (goja.Value, error) {
 			r.Set("done", func() {
 				close(done)
 			})
 			r.Set("error", func(msg string) {
 				t.Error(msg)
 			})
-			return nil
+			return nil, nil
 		})
 	})
 
 	require.NoError(t, err, "creating a new engine should not fail")
 
-	engine.RunAndBlock(func(r *goja.Runtime) error {
+	engine.Run(func(r *goja.Runtime) (goja.Value, error) {
 		_, err := r.RunString(`
 		var i = 0;
 		var id = scheulde("* * * * *", () => {
@@ -56,7 +57,7 @@ func Test_CoreModule(t *testing.T) {
 			}
 		})
 		`)
-		return err
+		return nil, err
 	})
 
 	<-done
@@ -65,20 +66,21 @@ func Test_CoreModule(t *testing.T) {
 func TestPubSub(t *testing.T) {
 	b := &mockBroker{}
 
-	rt, err := New("test", b)
+	rt, err := New("test", config.Config{}, b)
 	require.NoError(t, err)
 
-	require.NoError(t, rt.RunScript(`
-	
+	_, err = rt.RunScript(`
 	on("tkd.events.v1.Event", () => {})
+	`)
 
-	`))
+	require.NoError(t, err)
 
 	require.NotEmpty(t, b.subscriptions)
 	_, ok := b.subscriptions["tkd.events.v1.Event"]
 	require.True(t, ok)
 
-	require.NoError(t, rt.RunScript(`publish("tkd.tasks.v1.TaskEvent" ,{})`))
+	_, err = rt.RunScript(`publish("tkd.tasks.v1.TaskEvent" ,{})`)
+	require.NoError(t, err)
 
 	require.NotEmpty(t, b.events)
 	require.Equal(t, b.events[0].Event.TypeUrl, "type.googleapis.com/tkd.tasks.v1.TaskEvent")

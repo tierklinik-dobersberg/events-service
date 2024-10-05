@@ -25,6 +25,13 @@ import (
 
 	// Import all proto files from tkd/apis
 	_ "github.com/tierklinik-dobersberg/apis/proto"
+
+	// Import all javascript native modules
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fetch"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fs"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/template"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/timeutil"
 )
 
 var serverContextKey = struct{ S string }{S: "serverContextKey"}
@@ -120,40 +127,7 @@ func main() {
 	if cfg.ScriptPath != "" {
 		// Prepare the automation framework
 		engineOptions := []automation.EngineOption{
-			automation.WithFetchModule(),
-			automation.WithFileSystemModule(os.DirFS(cfg.ScriptPath)),
-			automation.WithTemplateModule(),
-			automation.WithDateModule(),
 			automation.WithBaseDirectory(cfg.ScriptPath),
-		}
-
-		if cfg.IdmURL != "" {
-			engineOptions = append(
-				engineOptions,
-				automation.WithUsersModule(ctx, cfg.IdmURL),
-				automation.WithRolesModule(ctx, cfg.IdmURL),
-				automation.WithNotifyModule(ctx, cfg.IdmURL),
-			)
-		}
-
-		if cfg.RosterURL != "" {
-			engineOptions = append(engineOptions,
-				automation.WithRosterModule(ctx, cfg.RosterURL),
-			)
-		}
-
-		if cfg.CallServiceURL != "" {
-			engineOptions = append(engineOptions,
-				automation.WithCallModule(ctx, cfg.CallServiceURL),
-				automation.WithVoiceMailModule(ctx, cfg.CallServiceURL),
-			)
-		}
-
-		if cfg.TaskServiceURL != "" {
-			engineOptions = append(engineOptions,
-				automation.WithBoardModule(ctx, cfg.TaskServiceURL),
-				automation.WithTaskModule(ctx, cfg.TaskServiceURL),
-			)
 		}
 
 		dirEntries, err := os.ReadDir(cfg.ScriptPath)
@@ -177,13 +151,13 @@ func main() {
 					continue
 				}
 
-				engine, err := automation.New(f.Name(), b, engineOptions...)
+				engine, err := automation.New(f.Name(), *cfg, b, engineOptions...)
 				if err != nil {
 					slog.Error("failed to create engine for script file", "error", err, "file", f.Name())
 					continue
 				}
 
-				if err := engine.RunScript(string(content)); err != nil {
+				if _, err := engine.RunScript(string(content)); err != nil {
 					slog.Error("failed to initialize engine", "error", err)
 				}
 			}

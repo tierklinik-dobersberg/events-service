@@ -6,15 +6,37 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
+	"github.com/tierklinik-dobersberg/events-service/internal/config"
 )
 
 type Engine struct {
 	name     string
 	loop     *eventloop.EventLoop
-	Registry *require.Registry
+	registry *require.Registry
 	ldr      require.SourceLoader
 	core     *CoreModule
 	baseDir  string
+	cfg      config.Config
+	rt       *goja.Runtime
+
+	moduleRegistry *modules.Registry
+}
+
+func (e *Engine) Registry() *require.Registry {
+	return e.registry
+}
+
+func (e *Engine) Config() config.Config {
+	return e.cfg
+}
+
+func (e *Engine) PackagePath() string {
+	return e.baseDir
+}
+
+func (e *Engine) Runtime() *goja.Runtime {
+	return e.rt
 }
 
 type EngineOption func(*Engine)
@@ -31,10 +53,18 @@ func WithBaseDirectory(dir string) EngineOption {
 	}
 }
 
-func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
+func WithModulsRegistry(reg *modules.Registry) EngineOption {
+	return func(e *Engine) {
+		e.moduleRegistry = reg
+	}
+}
+
+func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*Engine, error) {
 	engine := &Engine{
-		name: name,
-		ldr:  require.DefaultSourceLoader,
+		cfg:            cfg,
+		name:           name,
+		ldr:            require.DefaultSourceLoader,
+		moduleRegistry: modules.DefaultRegistry,
 	}
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
@@ -48,12 +78,14 @@ func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	loop := eventloop.NewEventLoop(eventloop.WithRegistry(registry))
 
 	engine.loop = loop
-	engine.Registry = registry
+	engine.registry = registry
 
 	core := NewCoreModule(engine, broker)
 	engine.core = core
 
 	loop.Run(func(r *goja.Runtime) {
+		engine.rt = r
+
 		r.SetFieldNameMapper(goja.TagFieldNameMapper("json", true))
 
 		core.Enable(r)
@@ -62,6 +94,13 @@ func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	// start the loop before applying any engine options
 	engine.loop.Start()
 
+	// load all modules from the module registry
+	if engine.moduleRegistry != nil {
+		if _, err := engine.moduleRegistry.EnableModules(engine); err != nil {
+			return nil, err
+		}
+	}
+
 	for _, opt := range opts {
 		opt(engine)
 	}
@@ -69,44 +108,41 @@ func New(name string, broker Broker, opts ...EngineOption) (*Engine, error) {
 	return engine, nil
 }
 
-// RunAndBlock schedules a function to execute on the loop and waits
-// until execution finished.
-func (e *Engine) RunAndBlock(fn func(r *goja.Runtime) error) error {
-	err := make(chan error, 1)
-
-	e.loop.RunOnLoop(func(r *goja.Runtime) {
-		err <- fn(r)
-	})
-
-	return <-err
+func (e *Engine) EventLoop() *eventloop.EventLoop {
+	return e.loop
 }
 
-// RunScript schedules a script to execute on the loop.
-func (e *Engine) RunScript(script string) error {
-	err := make(chan error, 1)
+func (e *Engine) Run(fn func(*goja.Runtime) (goja.Value, error)) (goja.Value, error) {
+	errCh := make(chan error, 1)
+	valueChan := make(chan goja.Value, 1)
 
 	e.loop.RunOnLoop(func(r *goja.Runtime) {
-		_, e := r.RunString(script)
+		value, err := fn(r)
 
-		err <- e
+		valueChan <- value
+		errCh <- err
 	})
 
-	return <-err
+	return <-valueChan, <-errCh
+}
+
+func (e *Engine) RunScript(script string) (goja.Value, error) {
+	errCh := make(chan error, 1)
+	valueChan := make(chan goja.Value, 1)
+
+	e.loop.RunOnLoop(func(r *goja.Runtime) {
+		value, err := r.RunScript("", script)
+
+		valueChan <- value
+		errCh <- err
+	})
+
+	return <-valueChan, <-errCh
 }
 
 func (e *Engine) Stop() int {
 	return e.loop.Stop()
 }
 
-func (e *Engine) RegisterNativeModuleHelper(name string, obj map[string]any) {
-	e.Registry.RegisterNativeModule(name, func(r *goja.Runtime, o *goja.Object) {
-		exports, ok := o.Get("exports").(*goja.Object)
-		if !ok {
-			panic("failed to get exports object")
-		}
-
-		for key, value := range obj {
-			exports.Set(key, value)
-		}
-	})
-}
+// Compile time check
+var _ modules.VU = (*Engine)(nil)

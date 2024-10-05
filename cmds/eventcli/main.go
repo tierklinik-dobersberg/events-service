@@ -15,7 +15,6 @@ func main() {
 	root.AddCommand(
 		cmds.GetSubscribeCommand(root),
 		cmds.GetPublishCommand(root),
-		cmds.GetAutomationCommand(root),
 	)
 
 	if err := root.Execute(); err != nil {

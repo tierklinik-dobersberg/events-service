@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja"
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -59,10 +60,10 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 	slog.Info("automation: new schedule registered", "schedule", schedule, "name", c.engine.name)
 
 	res, err := c.scheduler.AddFunc(schedule, func() {
-		c.engine.RunAndBlock(func(r *goja.Runtime) error {
+		c.engine.Run(func(r *goja.Runtime) (goja.Value, error) {
 			_, err := callable(nil)
 
-			return err
+			return nil, err
 		})
 	})
 	if err != nil {
@@ -87,7 +88,7 @@ func (c *CoreModule) publish(typeUrl string, obj *goja.Object) error {
 		return fmt.Errorf("invalid type url")
 	}
 
-	msg, err := objToProto(obj, md)
+	msg, err := connect.ObjectToProto(obj, md)
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 		defer slog.Info("automation: subscription loop closed", "name", c.engine.name)
 		for m := range msgs {
 			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
-			o, err := convertProtoMessage(m)
+			o, err := connect.ConvertProtoMessage(m)
 			if err != nil {
 				slog.Error("failed to convert protobuf message", "error", err)
 				continue
