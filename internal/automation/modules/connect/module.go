@@ -32,7 +32,7 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	if cfg.IdmURL != "" {
 		makeServiceClient("users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
 		makeServiceClient("roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
-		makeServiceClient("notify", vu, cfg.IdmURL, "tkd.idm.v1.NotiyService", merr)
+		makeServiceClient("notify", vu, cfg.IdmURL, "tkd.idm.v1.NotifyService", merr)
 	}
 
 	if cfg.RosterURL != "" {
