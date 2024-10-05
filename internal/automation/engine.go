@@ -15,7 +15,6 @@ type Engine struct {
 	loop     *eventloop.EventLoop
 	registry *require.Registry
 	ldr      require.SourceLoader
-	core     *CoreModule
 	baseDir  string
 	cfg      config.Config
 	rt       *goja.Runtime
@@ -81,7 +80,6 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 	engine.registry = registry
 
 	core := NewCoreModule(engine, broker)
-	engine.core = core
 
 	loop.Run(func(r *goja.Runtime) {
 		engine.rt = r
@@ -101,6 +99,7 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		}
 	}
 
+	// Apply any engine options
 	for _, opt := range opts {
 		opt(engine)
 	}

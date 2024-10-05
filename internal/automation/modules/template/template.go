@@ -5,6 +5,7 @@ import (
 	"text/template"
 
 	"github.com/dop251/goja"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 )
 
@@ -31,7 +32,7 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			return nil
 		})
 
-		call.This.Set("exec", func(t string, args any) (string, error) {
+		call.This.Set("exec", func(t string, args any) string {
 			fnMap := template.FuncMap{}
 			for key, val := range instance.fn {
 				fnMap[key] = func(args ...any) any {
@@ -42,7 +43,7 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 					res, err := val(call.This, gojaArgs...)
 					if err != nil {
-						panic(err.Error())
+						common.Throw(rt, err)
 					}
 
 					return res.Export()
@@ -51,15 +52,15 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 			tmp, err := template.New(vu.PackagePath()).Funcs(fnMap).Parse(t)
 			if err != nil {
-				return "", err
+				common.Throw(rt, err)
 			}
 
 			var buf = new(bytes.Buffer)
 			if err := tmp.Execute(buf, args); err != nil {
-				return "", err
+				common.Throw(rt, err)
 			}
 
-			return buf.String(), nil
+			return buf.String()
 		})
 
 		return nil

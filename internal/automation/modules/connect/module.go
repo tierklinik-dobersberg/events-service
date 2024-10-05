@@ -11,6 +11,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/hashicorp/go-multierror"
 	"github.com/tierklinik-dobersberg/apis/pkg/cli"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -43,6 +44,11 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	if cfg.TaskServiceURL != "" {
 		makeServiceClient("tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
 		makeServiceClient("boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
+	}
+
+	if cfg.CallServiceURL != "" {
+		makeServiceClient("calls", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.CallService", merr)
+		makeServiceClient("voicemails", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.VoiceMailService", merr)
 	}
 
 	return nil, merr.ErrorOrNil()
@@ -78,6 +84,7 @@ func makeServiceClient(pkgname string, vu modules.VU, ep string, serviceName str
 			request:  mdesc.Input(),
 			response: mdesc.Output(),
 			cli:      cli.NewInsecureHttp2Client(),
+			rt:       vu.Runtime(),
 		}
 
 		serviceObj.Set(methodName, cli.do)
@@ -91,23 +98,25 @@ type client struct {
 	request  protoreflect.MessageDescriptor
 	response protoreflect.MessageDescriptor
 
+	rt *goja.Runtime
+
 	cli *http.Client
 }
 
-func (c *client) do(in *goja.Object) (any, error) {
+func (c *client) do(in *goja.Object) any {
 	payload, err := ObjectToProto(in, c.request)
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	blob, err := protojson.Marshal(payload)
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewReader(blob))
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -115,38 +124,39 @@ func (c *client) do(in *goja.Object) (any, error) {
 
 	response, err := c.cli.Do(req)
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("unexpected status code: %s", response.Status)
+		err := fmt.Errorf("unexpected status code: %s", response.Status)
+		common.Throw(c.rt, err)
 	}
 
 	res := dynamicpb.NewMessage(c.response)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	if err := protojson.Unmarshal(body, res); err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	// create a goja value
 
 	protoBlob, err := protojson.Marshal(res)
 	if err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
 	m := make(map[string]any)
 	if err := json.Unmarshal(protoBlob, &m); err != nil {
-		return nil, err
+		common.Throw(c.rt, err)
 	}
 
-	return m, nil
+	return m
 }
 
 func ObjectToProto(in *goja.Object, out protoreflect.MessageDescriptor) (proto.Message, error) {

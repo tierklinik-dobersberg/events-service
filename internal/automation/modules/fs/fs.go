@@ -5,12 +5,15 @@ import (
 	"os"
 
 	"github.com/dop251/goja"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 )
 
 // Filesystem module
 type Instance struct {
 	Root fs.FS
+
+	rt *goja.Runtime
 }
 
 type Module struct {
@@ -28,6 +31,7 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 	mod := &Instance{
 		Root: root,
+		rt:   vu.Runtime(),
 	}
 
 	obj := vu.Runtime().NewObject()
@@ -38,15 +42,20 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	return obj, nil
 }
 
-func (m *Instance) readFile(path string) (string, error) {
+func (m *Instance) readFile(path string) string {
 	res, err := fs.ReadFile(m.Root, path)
 	if err != nil {
-		return "", err
+		common.Throw(m.rt, err)
 	}
 
-	return string(res), nil
+	return string(res)
 }
 
-func (m *Instance) readDir(path string) ([]fs.DirEntry, error) {
-	return fs.ReadDir(m.Root, path)
+func (m *Instance) readDir(path string) []fs.DirEntry {
+	res, err := fs.ReadDir(m.Root, path)
+	if err != nil {
+		common.Throw(m.rt, err)
+	}
+
+	return res
 }
