@@ -21,6 +21,8 @@ type (
 	}
 )
 
+func (*RootModule) Name() string { return "encoding" }
+
 // NewModuleInstance implements the modules.Module interface and returns
 // a new instance for each VU.
 func (*RootModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
