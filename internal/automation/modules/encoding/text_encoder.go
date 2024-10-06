@@ -3,6 +3,7 @@ package encoding
 import (
 	"errors"
 
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
 )
@@ -35,7 +36,7 @@ func (te *TextEncoder) Encode(text string) ([]byte, error) {
 	enc := te.encoder.NewEncoder()
 	encoded, err := enc.Bytes([]byte(text))
 	if err != nil {
-		return nil, NewError(TypeError, "unable to encode text; reason: "+err.Error())
+		return nil, common.NewError(common.TypeError, "unable to encode text; reason: "+err.Error())
 	}
 
 	return encoded, nil

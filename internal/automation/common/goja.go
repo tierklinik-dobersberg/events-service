@@ -1,15 +1,14 @@
-package encoding
+package common
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/dop251/goja"
-	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 )
 
-// setReadOnlyPropertyOf sets a read-only property on the given [goja.Object].
-func setReadOnlyPropertyOf(obj *goja.Object, name string, value goja.Value) error {
+// SetReadOnlyPropertyOf sets a read-only property on the given [goja.Object].
+func SetReadOnlyPropertyOf(obj *goja.Object, name string, value goja.Value) error {
 	err := obj.DefineDataProperty(name,
 		value,
 		goja.FLAG_FALSE,
@@ -23,10 +22,10 @@ func setReadOnlyPropertyOf(obj *goja.Object, name string, value goja.Value) erro
 	return nil
 }
 
-// exportArrayBuffer interprets the given value as an ArrayBuffer, TypedArray or DataView
+// ExportArrayBuffer interprets the given value as an ArrayBuffer, TypedArray or DataView
 // and returns a copy of the underlying byte slice.
-func exportArrayBuffer(rt *goja.Runtime, v goja.Value) ([]byte, error) {
-	if common.IsNullish(v) {
+func ExportArrayBuffer(rt *goja.Runtime, v goja.Value) ([]byte, error) {
+	if IsNullish(v) {
 		return nil, NewError(TypeError, "data is null or undefined")
 	}
 

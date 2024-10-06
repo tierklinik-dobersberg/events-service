@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"golang.org/x/text/encoding"
 	"golang.org/x/text/encoding/unicode"
 	"golang.org/x/text/transform"
@@ -64,7 +65,7 @@ func (td *TextDecoder) Decode(buffer []byte, options decodeOptions) (string, err
 	}
 
 	if err != nil {
-		return "", NewError(TypeError, "unable to decode text; reason: "+err.Error())
+		return "", common.NewError(common.TypeError, "unable to decode text; reason: "+err.Error())
 	}
 
 	return decoded, nil
@@ -104,7 +105,7 @@ func NewTextDecoder(rt *goja.Runtime, label string, options textDecoderOptions) 
 	case UTF16BEEncodingFormat:
 		decoder = unicode.UTF16(unicode.BigEndian, bomPolicy)
 	default:
-		return nil, NewError(RangeError, fmt.Sprintf("unsupported encoding: %s", label))
+		return nil, common.NewError(common.RangeError, fmt.Sprintf("unsupported encoding: %s", label))
 	}
 
 	td := &TextDecoder{

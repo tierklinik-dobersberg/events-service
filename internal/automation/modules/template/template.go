@@ -2,7 +2,7 @@ package template
 
 import (
 	"bytes"
-	"text/template"
+	"html/template"
 
 	"github.com/dop251/goja"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
