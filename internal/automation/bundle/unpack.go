@@ -86,44 +86,57 @@ L:
 }
 
 func unpackZip(path string) (string, error) {
+	// Open the zip file
 	zipFile, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer zipFile.Close()
 
+	// get file stats as we need the file size for the reader
 	stat, err := zipFile.Stat()
 	if err != nil {
 		return "", err
 	}
 
+	// create the temporary directory
 	base := filepath.Base(path)
 	base = strings.TrimSuffix(base, filepath.Ext(base))
-
 	dest, err := os.MkdirTemp("", fmt.Sprintf("%s-XXX", base))
 	if err != nil {
 		return "", err
 	}
 
+	// create a zip reader
 	r, err := zip.NewReader(zipFile, stat.Size())
 	if err != nil {
 		defer os.RemoveAll(dest)
 		return "", err
 	}
 
+	// finally, actually unpack the files to the temporary directory.
 	for _, f := range r.File {
 		var err error
 
 		if strings.HasSuffix(f.Name, "/") {
 			err = os.MkdirAll(filepath.Join(dest, f.Name), 0o755)
 		} else {
-			var fo io.ReadCloser
-			fo, err = f.Open()
+			// ensure we create the parent directories as well as not all zip files
+			// contain entries for directories.
+			err = os.MkdirAll(filepath.Dir(filepath.Join(dest, f.Name)), 0o755)
+
+			// finnally, write the zip file to disk
 			if err == nil {
-				err = writeFile(fo, filepath.Join(dest, f.Name))
+				var fo io.ReadCloser
+				fo, err = f.Open()
+				if err == nil {
+					err = writeFile(fo, filepath.Join(dest, f.Name))
+				}
 			}
 		}
 
+		// in case of an error, remove everything we already unpacked
+		// and abort
 		if err != nil {
 			defer os.RemoveAll(dest)
 
