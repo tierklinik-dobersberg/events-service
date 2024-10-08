@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/dop251/goja"
+	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
@@ -58,6 +59,12 @@ func WithModulsRegistry(reg *modules.Registry) EngineOption {
 	}
 }
 
+func WithConsole(printer console.Printer) EngineOption {
+	return func(e *Engine) {
+		e.Registry().RegisterNativeModule("console", console.RequireWithPrinter(printer))
+	}
+}
+
 func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*Engine, error) {
 	engine := &Engine{
 		cfg:            cfg,
@@ -74,7 +81,7 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		return engine.ldr(path)
 	}))
 
-	loop := eventloop.NewEventLoop(eventloop.WithRegistry(registry))
+	loop := eventloop.NewEventLoop(eventloop.WithRegistry(registry), eventloop.EnableConsole(false))
 
 	engine.loop = loop
 	engine.registry = registry

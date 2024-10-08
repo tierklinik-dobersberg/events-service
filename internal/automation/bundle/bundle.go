@@ -8,6 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
+
+	"github.com/tierklinik-dobersberg/events-service/internal/automation"
+	"github.com/tierklinik-dobersberg/events-service/internal/config"
 )
 
 type AutomationAnnotation struct {
@@ -28,6 +33,12 @@ type PackageJSON struct {
 	Automation AutomationAnnotation `json:"automation"`
 }
 
+type Log struct {
+	Time    time.Time
+	Level   slog.Level
+	Message string
+}
+
 type Bundle struct {
 	// Path holds the path to the bundle root
 	Path string
@@ -44,6 +55,10 @@ type Bundle struct {
 
 	// ScriptContent holds the content of the main entrypoint file.
 	ScriptContent string
+
+	lock    sync.Mutex
+	runtime *automation.Engine
+	logs    []Log
 }
 
 // Discover discovers all automation bundles at a specified root.
@@ -179,6 +194,79 @@ func Load(path string) (*Bundle, error) {
 	bundle.ScriptContent = string(script)
 
 	return bundle, nil
+}
+
+// Runtime returns the bundle's automation runtime. This returns nil until bundle.Prepare()
+// is called once.
+func (bundle *Bundle) Runtime() *automation.Engine {
+	bundle.lock.Lock()
+	defer bundle.lock.Unlock()
+
+	return bundle.runtime
+}
+
+func (bundle *Bundle) ReadLogs(minLevel slog.Level) []Log {
+	bundle.lock.Lock()
+	defer bundle.lock.Unlock()
+
+	result := make([]Log, 0, len(bundle.logs))
+
+	for _, l := range bundle.logs {
+		if l.Level >= minLevel {
+			result = append(result, l)
+		}
+	}
+
+	return result
+}
+
+func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts ...automation.EngineOption) error {
+	bundle.lock.Lock()
+	defer bundle.lock.Unlock()
+
+	if bundle.runtime != nil {
+		return ErrBundleRuntimePrepared
+	}
+
+	// Prepend our own engine options so users defined options may overwrite them
+	opts = append([]automation.EngineOption{
+		automation.WithConsole(bundle),
+	}, opts...)
+
+	runtime, err := automation.New(bundle.Path, cfg, broker, opts...)
+	if err != nil {
+		return err
+	}
+
+	bundle.runtime = runtime
+
+	return nil
+}
+
+func (bundle *Bundle) internalLog(lvl slog.Level, msg string) {
+	bundle.lock.Lock()
+	defer bundle.lock.Unlock()
+
+	bundle.logs = append(bundle.logs, Log{
+		Time:    time.Now(),
+		Level:   lvl,
+		Message: msg,
+	})
+}
+
+// Log logs an info level message. It implements the console.Printer interface.
+func (bundle *Bundle) Log(msg string) {
+	bundle.internalLog(slog.LevelInfo, msg)
+}
+
+// Warn logs an warn level message. It implements the console.Printer interface.
+func (bundle *Bundle) Warn(msg string) {
+	bundle.internalLog(slog.LevelWarn, msg)
+}
+
+// Error logs an error level message. It implements the console.Printer interface.
+func (bundle *Bundle) Error(msg string) {
+	bundle.internalLog(slog.LevelError, msg)
 }
 
 func fileExists(path string, name string) bool {
