@@ -36,10 +36,17 @@ type Bundle struct {
 	// should be executed.
 	Main string
 
+	// Version holds the bundle version.
+	Version string
+
+	// License is the SPDX license identifier for the automation bundle.
+	License string
+
 	// ScriptContent holds the content of the main entrypoint file.
 	ScriptContent string
 }
 
+// Discover discovers all automation bundles at a specified root.
 func Discover(root string) ([]*Bundle, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -117,7 +124,24 @@ func Load(path string) (*Bundle, error) {
 	content, err := os.ReadFile(pkgjson)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrInvalidBundle
+			// if package.json does not exist, check if there's a __single__ directory entry that
+			// contains the package
+
+			entries, err := os.ReadDir(path)
+			if err != nil {
+				return nil, fmt.Errorf("%w: failed to find package.json in %q", ErrInvalidBundle, path)
+			}
+
+			if len(entries) != 1 {
+				return nil, fmt.Errorf("%w: failed to find package.json in %q but multiple files/directories exists", ErrInvalidBundle, path)
+			}
+
+			first := entries[0]
+			if !first.IsDir() {
+				return nil, fmt.Errorf("%w: found one entry in %q but it's not a directory", ErrInvalidBundle, path)
+			}
+
+			return Load(filepath.Join(path, first.Name()))
 		}
 
 		return nil, err
@@ -141,8 +165,10 @@ func Load(path string) (*Bundle, error) {
 	}
 
 	bundle := &Bundle{
-		Path: path,
-		Main: parsed.Main,
+		Path:    path,
+		Main:    parsed.Main,
+		Version: parsed.Version,
+		License: parsed.License,
 	}
 
 	script, err := os.ReadFile(filepath.Join(path, bundle.Main))
