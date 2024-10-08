@@ -36,7 +36,7 @@ func unpackTar(isGzip bool, path string) (string, error) {
 	}
 
 	// open the tar file
-	tarReader := tar.NewReader(reader)
+	tarReader := tar.NewReader(stream)
 
 	// create the base directory
 	base := filepath.Base(path)
