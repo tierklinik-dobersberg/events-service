@@ -107,7 +107,7 @@ func main() {
 
 	// If we got a type-server URL we use a custom codec for marshaling
 	if cfg.TypeServerURL != "" {
-		resolver := resolver.New(cfg.TypeServerURL)
+		resolver := resolver.Wrap(cfg.TypeServerURL, protoregistry.GlobalFiles, protoregistry.GlobalTypes)
 		interceptors = connect.WithOptions(interceptors, connect.WithCodec(codec.NewCustomJSONCodec(resolver)))
 	}
 

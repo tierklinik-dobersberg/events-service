@@ -40,7 +40,7 @@ require (
 	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
-	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013110136-36a75b624990 // indirect
+	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013115156-67e8768ea605 // indirect
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c // indirect
 	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
