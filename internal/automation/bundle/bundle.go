@@ -242,6 +242,11 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 
 	bundle.runtime = runtime
 
+	// finally, execute the main entry point script
+	if _, err := bundle.runtime.RunScript(bundle.ScriptContent); err != nil {
+		return fmt.Errorf("failed to evaluate entry point: %w", err)
+	}
+
 	return nil
 }
 
