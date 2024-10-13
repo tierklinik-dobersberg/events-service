@@ -16,6 +16,7 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/bundle"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/codec"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
@@ -27,7 +28,6 @@ import (
 	// _ "github.com/tierklinik-dobersberg/apis/proto"
 
 	// Import all javascript native modules
-	"github.com/tierklinik-dobersberg/events-service/internal/automation/bundle"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/encoding"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fetch"
@@ -134,10 +134,16 @@ func main() {
 
 	// setup automation framework
 	if cfg.ScriptPath != "" {
+		slog.Info("searching for automation bundles", "path", cfg.ScriptPath)
+
 		bundles, err := bundle.Discover(cfg.ScriptPath)
 		if err != nil {
 			slog.Error("failed to discover automation bundles", "error", err)
 		} else {
+			if len(bundles) == 0 {
+				slog.Info("no automation bundles discovered")
+			}
+
 			for _, bundle := range bundles {
 				if err := bundle.Prepare(*cfg, b); err != nil {
 					slog.Error("failed to prepare bundle", "name", bundle.Path, "error", err)
