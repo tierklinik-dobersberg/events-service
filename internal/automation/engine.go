@@ -68,6 +68,8 @@ func WithConsole(printer console.Printer) EngineOption {
 		console := console.RequireWithPrinter(printer)
 
 		console(e.Runtime(), obj)
+
+		e.Runtime().Set("console", exports)
 	}
 }
 
