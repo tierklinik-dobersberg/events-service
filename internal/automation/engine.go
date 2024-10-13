@@ -61,7 +61,13 @@ func WithModulsRegistry(reg *modules.Registry) EngineOption {
 
 func WithConsole(printer console.Printer) EngineOption {
 	return func(e *Engine) {
-		e.Registry().RegisterNativeModule("console", console.RequireWithPrinter(printer))
+		obj := e.Runtime().NewObject()
+		exports := e.Runtime().NewObject()
+
+		obj.Set("exports", exports)
+		console := console.RequireWithPrinter(printer)
+
+		console(e.Runtime(), obj)
 	}
 }
 
