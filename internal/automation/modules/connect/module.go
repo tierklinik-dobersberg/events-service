@@ -13,10 +13,10 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/cli"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
+	"github.com/tierklinik-dobersberg/pbtype-server/resolver"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -27,37 +27,43 @@ func (*ConnectModule) Name() string { return "connect" }
 func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	cfg := vu.Config()
 
+	if cfg.TypeServerURL == "" {
+		return nil, nil
+	}
+
+	resolver := resolver.New(cfg.TypeServerURL)
+
 	merr := new(multierror.Error)
 
 	if cfg.IdmURL != "" {
-		makeServiceClient("users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
-		makeServiceClient("roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
-		makeServiceClient("notify", vu, cfg.IdmURL, "tkd.idm.v1.NotifyService", merr)
+		makeServiceClient(resolver, "users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
+		makeServiceClient(resolver, "roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
+		makeServiceClient(resolver, "notify", vu, cfg.IdmURL, "tkd.idm.v1.NotifyService", merr)
 	}
 
 	if cfg.RosterURL != "" {
-		makeServiceClient("roster", vu, cfg.RosterURL, "tkd.roster.v1.RosterService", merr)
-		makeServiceClient("offtime", vu, cfg.RosterURL, "tkd.roster.v1.OffTimeService", merr)
-		makeServiceClient("workshift", vu, cfg.RosterURL, "tkd.roster.v1.WorkShiftService", merr)
+		makeServiceClient(resolver, "roster", vu, cfg.RosterURL, "tkd.roster.v1.RosterService", merr)
+		makeServiceClient(resolver, "offtime", vu, cfg.RosterURL, "tkd.roster.v1.OffTimeService", merr)
+		makeServiceClient(resolver, "workshift", vu, cfg.RosterURL, "tkd.roster.v1.WorkShiftService", merr)
 	}
 
 	if cfg.TaskServiceURL != "" {
-		makeServiceClient("tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
-		makeServiceClient("boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
+		makeServiceClient(resolver, "tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
+		makeServiceClient(resolver, "boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
 	}
 
 	if cfg.CallServiceURL != "" {
-		makeServiceClient("calls", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.CallService", merr)
-		makeServiceClient("voicemails", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.VoiceMailService", merr)
+		makeServiceClient(resolver, "calls", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.CallService", merr)
+		makeServiceClient(resolver, "voicemails", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.VoiceMailService", merr)
 	}
 
 	return nil, merr.ErrorOrNil()
 }
 
-func makeServiceClient(pkgname string, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
+func makeServiceClient(resolver *resolver.Resolver, pkgname string, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
 	serviceObj := vu.Runtime().NewObject()
 
-	d, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(serviceName))
+	d, err := resolver.FindDescriptorByName(protoreflect.FullName(serviceName))
 	if err != nil {
 		merr.Errors = append(merr.Errors, fmt.Errorf("%s: %w", serviceName, err))
 		return

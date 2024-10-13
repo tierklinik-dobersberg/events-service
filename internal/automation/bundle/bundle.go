@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -253,6 +254,8 @@ func (bundle *Bundle) internalLog(lvl slog.Level, msg string) {
 		Level:   lvl,
 		Message: msg,
 	})
+
+	slog.Log(context.TODO(), lvl, msg)
 }
 
 // Log logs an info level message. It implements the console.Printer interface.
