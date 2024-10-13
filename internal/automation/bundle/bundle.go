@@ -231,6 +231,7 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 	// Prepend our own engine options so users defined options may overwrite them
 	opts = append([]automation.EngineOption{
 		automation.WithConsole(bundle),
+		automation.WithBaseDirectory(bundle.Path),
 	}, opts...)
 
 	runtime, err := automation.New(bundle.Path, cfg, broker, opts...)

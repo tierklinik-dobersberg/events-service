@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	connect "github.com/bufbuild/connect-go"
@@ -17,7 +16,6 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
-	"github.com/tierklinik-dobersberg/events-service/internal/automation"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/codec"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
@@ -29,6 +27,7 @@ import (
 	// _ "github.com/tierklinik-dobersberg/apis/proto"
 
 	// Import all javascript native modules
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/bundle"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/encoding"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fetch"
@@ -135,41 +134,17 @@ func main() {
 
 	// setup automation framework
 	if cfg.ScriptPath != "" {
-		// Prepare the automation framework
-		engineOptions := []automation.EngineOption{
-			automation.WithBaseDirectory(cfg.ScriptPath),
-		}
-
-		dirEntries, err := os.ReadDir(cfg.ScriptPath)
+		bundles, err := bundle.Discover(cfg.ScriptPath)
 		if err != nil {
-			slog.Error("failed to read automation scripts", "error", err)
+			slog.Error("failed to discover automation bundles", "error", err)
 		} else {
-			for _, f := range dirEntries {
-				if f.IsDir() {
+			for _, bundle := range bundles {
+				if err := bundle.Prepare(*cfg, b); err != nil {
+					slog.Error("failed to prepare bundle", "name", bundle.Path, "error", err)
 					continue
 				}
 
-				if filepath.Ext(f.Name()) != ".js" {
-					continue
-				}
-
-				path := filepath.Join(cfg.ScriptPath, f.Name())
-
-				content, err := os.ReadFile(path)
-				if err != nil {
-					slog.Error("failed to read script file", "error", err, "file", f.Name())
-					continue
-				}
-
-				engine, err := automation.New(f.Name(), *cfg, b, engineOptions...)
-				if err != nil {
-					slog.Error("failed to create engine for script file", "error", err, "file", f.Name())
-					continue
-				}
-
-				if _, err := engine.RunScript(string(content)); err != nil {
-					slog.Error("failed to initialize engine", "error", err)
-				}
+				slog.Info("successfully prepare automation bundle", "name", bundle.Path)
 			}
 		}
 	}
