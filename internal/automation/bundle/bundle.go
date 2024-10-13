@@ -223,9 +223,9 @@ func (bundle *Bundle) ReadLogs(minLevel slog.Level) []Log {
 
 func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts ...automation.EngineOption) error {
 	bundle.lock.Lock()
-	defer bundle.lock.Unlock()
 
 	if bundle.runtime != nil {
+		bundle.lock.Unlock()
 		return ErrBundleRuntimePrepared
 	}
 
@@ -237,10 +237,13 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 
 	runtime, err := automation.New(bundle.Path, cfg, broker, opts...)
 	if err != nil {
+		bundle.lock.Unlock()
 		return err
 	}
 
 	bundle.runtime = runtime
+
+	bundle.lock.Unlock()
 
 	// finally, execute the main entry point script
 	if _, err := bundle.runtime.RunScript(bundle.ScriptContent); err != nil {
