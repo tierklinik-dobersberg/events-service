@@ -17,6 +17,7 @@ type Config struct {
 	RosterURL      string `env:"ROSTER_URL"`
 	TaskServiceURL string `env:"TASK_SERVICE"`
 	CallServiceURL string `env:"CALL_SERVICE"`
+	TypeServerURL  string `´env:"TYPE_SERVER"`
 }
 
 func LoadConfig(ctx context.Context) (*Config, error) {

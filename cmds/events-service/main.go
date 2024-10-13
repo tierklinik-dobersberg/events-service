@@ -19,8 +19,10 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
+	"github.com/tierklinik-dobersberg/events-service/internal/codec"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
+	"github.com/tierklinik-dobersberg/pbtype-server/resolver"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
 	// Import all proto files from tkd/apis
@@ -102,6 +104,12 @@ func main() {
 	}
 
 	serveMux := http.NewServeMux()
+
+	// If we got a type-server URL we use a custom codec for marshaling
+	if cfg.TypeServerURL != "" {
+		resolver := resolver.New(cfg.TypeServerURL)
+		interceptors = connect.WithOptions(interceptors, connect.WithCodec(codec.NewCustomJSONCodec(resolver)))
+	}
 
 	path, handler := eventsv1connect.NewEventServiceHandler(svc, interceptors)
 	serveMux.Handle(path, handler)
