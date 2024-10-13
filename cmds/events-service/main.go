@@ -26,7 +26,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoregistry"
 
 	// Import all proto files from tkd/apis
-	_ "github.com/tierklinik-dobersberg/apis/proto"
+	// _ "github.com/tierklinik-dobersberg/apis/proto"
 
 	// Import all javascript native modules
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
@@ -107,6 +107,7 @@ func main() {
 
 	// If we got a type-server URL we use a custom codec for marshaling
 	if cfg.TypeServerURL != "" {
+		slog.Info("using type-server", "url", cfg.TypeServerURL)
 		resolver := resolver.Wrap(cfg.TypeServerURL, protoregistry.GlobalFiles, protoregistry.GlobalTypes)
 		interceptors = connect.WithOptions(interceptors, connect.WithCodec(codec.NewCustomJSONCodec(resolver)))
 	}
