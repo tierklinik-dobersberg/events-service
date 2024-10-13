@@ -16,7 +16,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/tierklinik-dobersberg/apis v0.11.0
-	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013121336-d96ce7f3e5a2
+	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808
 	golang.org/x/text v0.19.0
 	google.golang.org/protobuf v1.35.1
 )

@@ -142,6 +142,8 @@ func main() {
 		} else {
 			if len(bundles) == 0 {
 				slog.Info("no automation bundles discovered")
+			} else {
+				slog.Info("automation bundles discovered successfully", "count", len(bundles))
 			}
 
 			for _, bundle := range bundles {
