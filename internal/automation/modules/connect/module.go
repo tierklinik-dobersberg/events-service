@@ -89,8 +89,10 @@ func makeServiceClient(resolver *resolver.Resolver, pkgname string, vu modules.V
 
 		methodName := strings.ToLower(string(mdesc.Name()[0])) + string(mdesc.Name()[1:])
 
+		serviceEndpoint := strings.TrimSuffix(ep, "/") + "/" + string(desc.FullName()) + "/" + string(desc.Name())
+
 		cli := &client{
-			endpoint: ep + "/" + string(desc.FullName()) + "/" + string(mdesc.Name()),
+			endpoint: serviceEndpoint,
 			request:  mdesc.Input(),
 			response: mdesc.Output(),
 			cli:      cli.NewInsecureHttp2Client(),
