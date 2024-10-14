@@ -89,7 +89,7 @@ func makeServiceClient(resolver *resolver.Resolver, pkgname string, vu modules.V
 
 		methodName := strings.ToLower(string(mdesc.Name()[0])) + string(mdesc.Name()[1:])
 
-		serviceEndpoint := strings.TrimSuffix(ep, "/") + "/" + string(desc.FullName()) + "/" + string(desc.Name())
+		serviceEndpoint := strings.TrimSuffix(ep, "/") + "/" + string(desc.FullName()) + "/" + string(mdesc.Name())
 
 		cli := &client{
 			endpoint: serviceEndpoint,
