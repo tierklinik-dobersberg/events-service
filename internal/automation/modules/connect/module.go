@@ -24,10 +24,15 @@ import (
 
 type ConnectModule struct{}
 
-func (*ConnectModule) Name() string { return "connect" }
+func (*ConnectModule) Name() string { return "services" }
 
 func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	cfg := vu.Config()
+
+	obj := vu.Runtime().NewObject()
+	exports := vu.Runtime().NewObject()
+
+	obj.Set("exports", obj)
 
 	if cfg.TypeServerURL == "" {
 		return nil, nil
@@ -58,13 +63,13 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		serviceURL := fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, path)
 
 		slog.Info("creating connect service", "jsModule", jsServiceName, "service-name", serviceName, "service-url", serviceURL)
-		makeServiceClient(resolver, jsServiceName, vu, serviceURL, serviceName, merr)
+		makeServiceClient(resolver, jsServiceName, exports, vu, serviceURL, serviceName, merr)
 	}
 
-	return nil, merr.ErrorOrNil()
+	return obj, merr.ErrorOrNil()
 }
 
-func makeServiceClient(resolver *resolver.Resolver, pkgname string, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
+func makeServiceClient(resolver *resolver.Resolver, pkgname string, obj *goja.Object, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
 	serviceObj := vu.Runtime().NewObject()
 
 	d, err := resolver.FindDescriptorByName(protoreflect.FullName(serviceName))
@@ -102,7 +107,7 @@ func makeServiceClient(resolver *resolver.Resolver, pkgname string, vu modules.V
 		serviceObj.Set(methodName, cli.do)
 	}
 
-	vu.Runtime().Set(pkgname, serviceObj)
+	obj.Set(pkgname, serviceObj)
 }
 
 type client struct {
