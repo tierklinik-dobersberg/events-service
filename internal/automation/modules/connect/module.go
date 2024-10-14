@@ -29,10 +29,7 @@ func (*ConnectModule) Name() string { return "services" }
 func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	cfg := vu.Config()
 
-	obj := vu.Runtime().NewObject()
 	exports := vu.Runtime().NewObject()
-
-	obj.Set("exports", obj)
 
 	if cfg.TypeServerURL == "" {
 		return nil, nil
@@ -66,7 +63,7 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		makeServiceClient(resolver, jsServiceName, exports, vu, serviceURL, serviceName, merr)
 	}
 
-	return obj, merr.ErrorOrNil()
+	return exports, merr.ErrorOrNil()
 }
 
 func makeServiceClient(resolver *resolver.Resolver, pkgname string, obj *goja.Object, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
