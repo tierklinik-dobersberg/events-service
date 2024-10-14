@@ -12,12 +12,16 @@ type Config struct {
 	AdminListenAddress string   `env:"ADMIN_LISTEN, default=:8091"`
 	AllowedOrigins     []string `env:"ALLOWED_ORIGINS, default=*"`
 
-	ScriptPath     string `env:"AUTOMATION_PATH"`
-	IdmURL         string `env:"IDM_URL"`
-	RosterURL      string `env:"ROSTER_URL"`
-	TaskServiceURL string `env:"TASK_SERVICE"`
-	CallServiceURL string `env:"CALL_SERVICE"`
-	TypeServerURL  string `env:"TYPE_SERVER"`
+	ScriptPath    string `env:"AUTOMATION_PATH"`
+	IdmURL        string `env:"IDM_URL"`
+	TypeServerURL string `env:"TYPE_SERVER"`
+
+	//RosterURL      string `env:"ROSTER_URL"`
+	//TaskServiceURL string `env:"TASK_SERVICE"`
+	//CallServiceURL string `env:"CALL_SERVICE"`
+
+	// format: <scheme>://<host>:<port>/<fully-qualified-protobuf-service-name>
+	ConnectServices []string `env:"SERVICES"`
 }
 
 func LoadConfig(ctx context.Context) (*Config, error) {

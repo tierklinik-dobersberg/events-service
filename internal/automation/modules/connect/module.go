@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -35,26 +37,28 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 	merr := new(multierror.Error)
 
-	if cfg.IdmURL != "" {
-		makeServiceClient(resolver, "users", vu, cfg.IdmURL, "tkd.idm.v1.UserService", merr)
-		makeServiceClient(resolver, "roles", vu, cfg.IdmURL, "tkd.idm.v1.RoleService", merr)
-		makeServiceClient(resolver, "notify", vu, cfg.IdmURL, "tkd.idm.v1.NotifyService", merr)
-	}
+	for _, service := range cfg.ConnectServices {
+		u, err := url.Parse(service)
+		if err != nil {
+			merr.Errors = append(merr.Errors, fmt.Errorf("failed to parse service url %q: %w", service, err))
+			continue
+		}
 
-	if cfg.RosterURL != "" {
-		makeServiceClient(resolver, "roster", vu, cfg.RosterURL, "tkd.roster.v1.RosterService", merr)
-		makeServiceClient(resolver, "offtime", vu, cfg.RosterURL, "tkd.roster.v1.OffTimeService", merr)
-		makeServiceClient(resolver, "workshift", vu, cfg.RosterURL, "tkd.roster.v1.WorkShiftService", merr)
-	}
+		parts := strings.Split(u.Path, "/")
 
-	if cfg.TaskServiceURL != "" {
-		makeServiceClient(resolver, "tasks", vu, cfg.TaskServiceURL, "tkd.tasks.v1.TaskService", merr)
-		makeServiceClient(resolver, "boards", vu, cfg.TaskServiceURL, "tkd.tasks.v1.BoardService", merr)
-	}
+		// the last part is expected to be the fully qualified service name
+		serviceName := parts[len(parts)-1]
+		serviceParts := strings.Split(serviceName, ".")
 
-	if cfg.CallServiceURL != "" {
-		makeServiceClient(resolver, "calls", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.CallService", merr)
-		makeServiceClient(resolver, "voicemails", vu, cfg.CallServiceURL, "tkd.pbx3cx.v1.VoiceMailService", merr)
+		jsServiceName := strings.ToLower(
+			strings.TrimSuffix(serviceParts[len(serviceParts)-1], "Service"),
+		)
+		path := strings.Join(parts[:len(parts)-1], "/")
+
+		serviceURL := fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, path)
+
+		slog.Info("creating connect service", "jsModule", jsServiceName, "service-name", serviceName, "service-url", serviceURL)
+		makeServiceClient(resolver, jsServiceName, vu, serviceURL, serviceName, merr)
 	}
 
 	return nil, merr.ErrorOrNil()
