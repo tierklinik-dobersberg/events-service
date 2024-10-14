@@ -16,10 +16,6 @@ type Config struct {
 	IdmURL        string `env:"IDM_URL"`
 	TypeServerURL string `env:"TYPE_SERVER"`
 
-	//RosterURL      string `env:"ROSTER_URL"`
-	//TaskServiceURL string `env:"TASK_SERVICE"`
-	//CallServiceURL string `env:"CALL_SERVICE"`
-
 	// format: <scheme>://<host>:<port>/<fully-qualified-protobuf-service-name>
 	ConnectServices []string `env:"SERVICES"`
 }

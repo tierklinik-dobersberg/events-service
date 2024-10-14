@@ -139,7 +139,7 @@ func (c *client) do(in *goja.Object) any {
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		err := fmt.Errorf("unexpected status code: %s", response.Status)
+		err := fmt.Errorf("unexpected status code for %s %s: %s", req.Method, req.URL.String(), response.Status)
 		common.Throw(c.rt, err)
 	}
 
