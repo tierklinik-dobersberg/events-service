@@ -113,6 +113,7 @@ func (b *Broker) subscribe(typeUrl string) {
 		b.log.Error("failed to subscribe to topic", "topic", topic)
 	} else {
 		b.log.Info("successfully subscribed to topic", "topic", topic)
+
 		b.l.Lock()
 		defer b.l.Unlock()
 
@@ -131,7 +132,7 @@ func (b *Broker) UnsubscribeAll(msgs chan *eventsv1.Event) {
 
 				b.receivers[key] = append(receivers[:idx], receivers[idx+1:]...)
 
-				b.log.Info("removing subscriber from topic", "topic", key, "receiverCount", len(b.receivers[key]))
+				b.log.Debug("removing subscriber from topic", "topic", key, "receiverCount", len(b.receivers[key]))
 			}
 
 			if len(b.receivers[key]) == 0 {
@@ -159,7 +160,7 @@ func (b *Broker) UnsubscribeAll(msgs chan *eventsv1.Event) {
 				b.log.Error("failed to unsubscribe from unused topics", "error", err)
 			}
 
-			b.log.Info("successfully unsubscribed from unused topics", "topics", topicCleanup)
+			b.log.Debug("successfully unsubscribed from unused topics", "topics", topicCleanup)
 		}()
 	}
 }
@@ -174,7 +175,7 @@ func (b *Broker) Publish(evt *eventsv1.Event) error {
 	defer b.connLock.Unlock()
 
 	if b.conn == nil {
-		return errors.New("not yet connected, please try again later.")
+		return errors.New("not yet connected, please try again later")
 	}
 
 	topic := makeTopic(evt.Event.TypeUrl)
@@ -197,7 +198,7 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 	}
 
 	typeUrl := strings.TrimPrefix(pb.Event.TypeUrl, "type.googleapis.com/")
-	b.log.Info("received new event from mqtt", "typeUrl", typeUrl, "topic", msg.Topic())
+	b.log.Debug("received new event from mqtt", "typeUrl", typeUrl, "topic", msg.Topic())
 
 	b.l.RLock()
 	defer b.l.RUnlock()
@@ -212,7 +213,7 @@ func (b *Broker) handleMessage(_ mqtt.Client, msg mqtt.Message) {
 		select {
 		case m <- proto.Clone(pb).(*eventsv1.Event):
 		case <-time.After(time.Second * 5):
-			b.log.Info("failed to dispatch event, receiver busy")
+			b.log.Warn("failed to dispatch event, receiver busy")
 		}
 	}
 }

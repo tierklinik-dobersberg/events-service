@@ -60,6 +60,7 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 
 			switch v := msg.Kind.(type) {
 			case *eventsv1.SubscribeRequest_Subscribe:
+				s.log.Info("subscribing to topic", "topic", v.Subscribe)
 				s.broker.Subscribe(v.Subscribe, msgs)
 
 			default:
@@ -80,7 +81,7 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 		}
 	}
 
-	s.log.Info("subscription completed")
+	s.log.Debug("subscription completed")
 
 	return nil
 }
