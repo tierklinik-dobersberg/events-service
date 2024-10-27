@@ -17,16 +17,21 @@ type Resolver interface {
 	protoregistry.MessageTypeResolver
 }
 
-type CustomJSONCodec struct {
+// JSON is connect-go.Codec that mimics the behaviour of the official
+// connect-go JSON codec but adds support for a custom MessageTypeResolver and
+// ExtensionTypeResolver when using protojson.
+type JSON struct {
 	resolver Resolver
 }
 
-func NewCustomJSONCodec(resolver Resolver) *CustomJSONCodec {
+// NewCodec returns a new JSON codec that uses resolver for message type lookups.
+// if resolver is empty, protoregistry.GlobalTypes is used.
+func NewCodec(resolver Resolver) *JSON {
 	if resolver == nil {
 		resolver = protoregistry.GlobalTypes
 	}
 
-	return &CustomJSONCodec{
+	return &JSON{
 		resolver: resolver,
 	}
 }
@@ -35,11 +40,13 @@ func errNotProto(m any) error {
 	return fmt.Errorf("expected a proto.Message but got %T", m)
 }
 
-var _ connect.Codec = (*CustomJSONCodec)(nil)
+var _ connect.Codec = (*JSON)(nil)
 
-func (c *CustomJSONCodec) Name() string { return "json" }
+// Name returns "json"
+func (c *JSON) Name() string { return "json" }
 
-func (c *CustomJSONCodec) Marshal(message any) ([]byte, error) {
+// Marshal marshals a protobuf message.
+func (c *JSON) Marshal(message any) ([]byte, error) {
 	protoMessage, ok := message.(proto.Message)
 	if !ok {
 		return nil, errNotProto(message)
@@ -49,7 +56,8 @@ func (c *CustomJSONCodec) Marshal(message any) ([]byte, error) {
 	}.Marshal(protoMessage)
 }
 
-func (c *CustomJSONCodec) MarshalAppend(dst []byte, message any) ([]byte, error) {
+// MarshalAppend marshals a prootbuf message and append the result to dst.
+func (c *JSON) MarshalAppend(dst []byte, message any) ([]byte, error) {
 	protoMessage, ok := message.(proto.Message)
 	if !ok {
 		return nil, errNotProto(message)
@@ -59,7 +67,9 @@ func (c *CustomJSONCodec) MarshalAppend(dst []byte, message any) ([]byte, error)
 	}.MarshalAppend(dst, protoMessage)
 }
 
-func (c *CustomJSONCodec) Unmarshal(binary []byte, message any) error {
+// Unmarshal unmarshals a protbuf message from it's binary/JSON form
+// into message.
+func (c *JSON) Unmarshal(binary []byte, message any) error {
 	protoMessage, ok := message.(proto.Message)
 	if !ok {
 		return errNotProto(message)
@@ -73,7 +83,7 @@ func (c *CustomJSONCodec) Unmarshal(binary []byte, message any) error {
 	return options.Unmarshal(binary, protoMessage)
 }
 
-func (c *CustomJSONCodec) MarshalStable(message any) ([]byte, error) {
+func (c *JSON) MarshalStable(message any) ([]byte, error) {
 	// protojson does not offer a "deterministic" field ordering, but fields
 	// are still ordered consistently by their index. However, protojson can
 	// output inconsistent whitespace for some reason, therefore it is
@@ -90,6 +100,6 @@ func (c *CustomJSONCodec) MarshalStable(message any) ([]byte, error) {
 	return compactedJSON.Bytes(), nil
 }
 
-func (c *CustomJSONCodec) IsBinary() bool {
+func (c *JSON) IsBinary() bool {
 	return false
 }

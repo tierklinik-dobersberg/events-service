@@ -15,7 +15,7 @@ require (
 	github.com/sethvargo/go-envconfig v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
-	github.com/tierklinik-dobersberg/apis v0.11.0
+	github.com/tierklinik-dobersberg/apis v0.11.1-0.20241025123040-1127076fcd79
 	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808
 	golang.org/x/text v0.19.0
 	google.golang.org/protobuf v1.35.1

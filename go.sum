@@ -148,6 +148,10 @@ github.com/tierklinik-dobersberg/apis v0.10.1-0.20241003092314-b6a4c618baff h1:c
 github.com/tierklinik-dobersberg/apis v0.10.1-0.20241003092314-b6a4c618baff/go.mod h1:/yv2lATICewRsgIVsYqzZm3Q19MeBaOh5tXFMuFpvzw=
 github.com/tierklinik-dobersberg/apis v0.11.0 h1:s9PH5ZaVWHmi17jDeuNlgE8GqwyVP2H9OD90U7JeM8o=
 github.com/tierklinik-dobersberg/apis v0.11.0/go.mod h1:/yv2lATICewRsgIVsYqzZm3Q19MeBaOh5tXFMuFpvzw=
+github.com/tierklinik-dobersberg/apis v0.11.1-0.20241025122500-1b60f3ac947a h1:0o6fQoY3qm7mf9Er3wUFE4wpqhNxSxHPYUzhcnf/4IA=
+github.com/tierklinik-dobersberg/apis v0.11.1-0.20241025122500-1b60f3ac947a/go.mod h1:nap7RDB8Abe08sIlAUdaytQkJ5sdTPBOyWarWdjZL3w=
+github.com/tierklinik-dobersberg/apis v0.11.1-0.20241025123040-1127076fcd79 h1:lFGLusfwFc9NP+R53GTpuorgQ0o10jljkYMbi2yMOho=
+github.com/tierklinik-dobersberg/apis v0.11.1-0.20241025123040-1127076fcd79/go.mod h1:nap7RDB8Abe08sIlAUdaytQkJ5sdTPBOyWarWdjZL3w=
 github.com/tierklinik-dobersberg/pbtype-server v0.1.0 h1:QO6Ae7/IfurT7p9NMGKmdX6RQPm4oBOPukrLfBmlFCk=
 github.com/tierklinik-dobersberg/pbtype-server v0.1.0/go.mod h1:/3FaWydvwP/jTsg3jx77EvprBXZ0q2/NP0p/MYrNGtU=
 github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013110136-36a75b624990 h1:P7PFCaqRB6KnqhL/DjpyRge8qd6hx5BzvsmmGl3efh4=

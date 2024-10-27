@@ -13,6 +13,8 @@ import (
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
 	"github.com/tierklinik-dobersberg/apis/pkg/cors"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery/consuldiscover"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
@@ -109,7 +111,7 @@ func main() {
 	if cfg.TypeServerURL != "" {
 		slog.Info("using type-server", "url", cfg.TypeServerURL)
 		resolver := resolver.Wrap(cfg.TypeServerURL, protoregistry.GlobalFiles, protoregistry.GlobalTypes)
-		interceptors = connect.WithOptions(interceptors, connect.WithCodec(codec.NewCustomJSONCodec(resolver)))
+		interceptors = connect.WithOptions(interceptors, connect.WithCodec(codec.NewCodec(resolver)))
 	}
 
 	path, handler := eventsv1connect.NewEventServiceHandler(svc, interceptors)
@@ -156,6 +158,16 @@ func main() {
 				slog.Info("successfully prepare automation bundle", "name", bundle.Path)
 			}
 		}
+	}
+
+	discover, err := consuldiscover.NewFromEnv()
+	if err != nil {
+		slog.Error("failed to create service catalog client", "error", err)
+		os.Exit(-1)
+	}
+
+	if err := wellknown.EventService.Register(ctx, discover, cfg.ListenAddress); err != nil {
+		slog.Error("failed to register service", "error", err)
 	}
 
 	// Create the server
