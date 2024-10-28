@@ -13,6 +13,7 @@ import (
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
 	"github.com/tierklinik-dobersberg/apis/pkg/cors"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/consuldiscover"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
@@ -160,13 +161,16 @@ func main() {
 		}
 	}
 
-	discover, err := consuldiscover.NewFromEnv()
+	catalog, err := consuldiscover.NewFromEnv()
 	if err != nil {
 		slog.Error("failed to create service catalog client", "error", err)
 		os.Exit(-1)
 	}
 
-	if err := wellknown.EventService.Register(ctx, discover, cfg.ListenAddress); err != nil {
+	if err := discovery.Register(ctx, catalog, discovery.ServiceInstance{
+		Name:    wellknown.EventV1ServiceScropt,
+		Address: cfg.AdminListenAddress,
+	}); err != nil {
 		slog.Error("failed to register service", "error", err)
 	}
 
