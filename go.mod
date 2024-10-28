@@ -16,7 +16,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
-	github.com/tierklinik-dobersberg/apis v0.11.1-0.20241027140947-ec5650079189
+	github.com/tierklinik-dobersberg/apis v0.11.1-0.20241028074458-c1ef04957a81
 	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808
 	golang.org/x/text v0.19.0
 	google.golang.org/protobuf v1.35.1
