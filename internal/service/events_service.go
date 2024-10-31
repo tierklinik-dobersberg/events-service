@@ -58,6 +58,10 @@ func (svc *EventsService) SubscribeOnce(ctx context.Context, req *connect.Reques
 }
 
 func (svc *EventsService) Publish(ctx context.Context, req *connect.Request[eventsv1.Event]) (*connect.Response[emptypb.Empty], error) {
+	if req.Msg.Event == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid request message, missing event field"))
+	}
+
 	svc.l.Debug("received publish request", slog.Any("typeUrl", req.Msg.Event.TypeUrl))
 
 	if evt := req.Msg.GetEvent(); evt == nil {
