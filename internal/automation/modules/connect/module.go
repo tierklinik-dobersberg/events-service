@@ -117,7 +117,7 @@ type client struct {
 	cli *http.Client
 }
 
-func (c *client) do(in *goja.Object) any {
+func (c *client) do(in *goja.Object, options *goja.Object) any {
 	payload, err := ObjectToProto(in, c.request)
 	if err != nil {
 		common.Throw(c.rt, err)
@@ -135,6 +135,27 @@ func (c *client) do(in *goja.Object) any {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+
+	if options != nil {
+		if headers, ok := options.Get("headers").(*goja.Object); ok {
+			for _, key := range headers.Keys() {
+				headerValue := headers.Get(key)
+				val := headerValue.Export()
+
+				switch v := val.(type) {
+				case string:
+					req.Header.Add(key, v)
+
+				case []any:
+					for _, el := range v {
+						if s, ok := el.(string); ok {
+							req.Header.Add(key, s)
+						}
+					}
+				}
+			}
+		}
+	}
 
 	response, err := c.cli.Do(req)
 	if err != nil {
