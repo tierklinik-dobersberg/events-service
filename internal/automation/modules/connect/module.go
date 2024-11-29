@@ -137,24 +137,36 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 	req.Header.Set("Accept", "application/json")
 
 	if options != nil {
-		if headers, ok := options.Get("headers").(*goja.Object); ok {
-			for _, key := range headers.Keys() {
-				headerValue := headers.Get(key)
-				val := headerValue.Export()
+		slog.Info("preparing custom HTTP headers")
+		headerObj := options.Get("headers")
+		if headerObj != nil {
+			if headers, ok := headerObj.(*goja.Object); ok {
+				for _, key := range headers.Keys() {
+					headerValue := headers.Get(key)
+					val := headerValue.Export()
 
-				switch v := val.(type) {
-				case string:
-					req.Header.Add(key, v)
+					switch v := val.(type) {
+					case string:
+						req.Header.Add(key, v)
 
-				case []any:
-					for _, el := range v {
-						if s, ok := el.(string); ok {
-							req.Header.Add(key, s)
+					case []any:
+						for _, el := range v {
+							if s, ok := el.(string); ok {
+								req.Header.Add(key, s)
+							} else {
+								slog.Warn("ignoring custom header value", "header", key, "value", el)
+							}
 						}
+
+					default:
+						slog.Warn("ignoring custom header value", "header", key, "value", val)
 					}
 				}
+			} else {
+				slog.Warn("ignoring custom request headers, unsupported type", "type", fmt.Sprintf("%T", headerObj))
 			}
 		}
+
 	}
 
 	response, err := c.cli.Do(req)
