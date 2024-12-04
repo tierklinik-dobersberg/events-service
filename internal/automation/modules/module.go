@@ -4,7 +4,9 @@ import (
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
+	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
 )
 
 type VU interface {
@@ -31,6 +33,14 @@ type VU interface {
 
 	// EventLoop returns the underlying event loop
 	EventLoop() *eventloop.EventLoop
+
+	// Discoverer returns the configured service discoverer
+	// or a NO-OP if unconfigured.
+	Discoverer() discovery.Discoverer
+
+	// TypeResolver returns the protobuf type resolver which is either backed
+	// by protoregistry or by using a pbtype-server instance.
+	TypeResolver() protoresolve.Resolver
 }
 
 type Module interface {

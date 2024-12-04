@@ -2,20 +2,23 @@ package connect
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/url"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/hashicorp/go-multierror"
 	"github.com/tierklinik-dobersberg/apis/pkg/cli"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
-	"github.com/tierklinik-dobersberg/pbtype-server/resolver"
+	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -35,38 +38,24 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		return nil, nil
 	}
 
-	resolver := resolver.New(cfg.TypeServerURL)
-
 	merr := new(multierror.Error)
 
-	for _, service := range cfg.ConnectServices {
-		u, err := url.Parse(service)
-		if err != nil {
-			merr.Errors = append(merr.Errors, fmt.Errorf("failed to parse service url %q: %w", service, err))
-			continue
-		}
+	for _, serviceName := range cfg.ConnectServices {
 
-		parts := strings.Split(u.Path, "/")
-
-		// the last part is expected to be the fully qualified service name
-		serviceName := parts[len(parts)-1]
 		serviceParts := strings.Split(serviceName, ".")
 
 		jsServiceName := strings.ToLower(
 			strings.TrimSuffix(serviceParts[len(serviceParts)-1], "Service"),
 		)
-		path := strings.Join(parts[:len(parts)-1], "/")
 
-		serviceURL := fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, path)
-
-		slog.Info("creating connect service", "jsModule", jsServiceName, "service-name", serviceName, "service-url", serviceURL)
-		makeServiceClient(resolver, jsServiceName, exports, vu, serviceURL, serviceName, merr)
+		slog.Info("creating connect service", "jsModule", jsServiceName, "service-name", serviceName)
+		makeServiceClient(vu.Discoverer(), vu.TypeResolver(), jsServiceName, exports, vu, serviceName, merr)
 	}
 
 	return exports, merr.ErrorOrNil()
 }
 
-func makeServiceClient(resolver *resolver.Resolver, pkgname string, obj *goja.Object, vu modules.VU, ep string, serviceName string, merr *multierror.Error) {
+func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver, pkgname string, obj *goja.Object, vu modules.VU, serviceName string, merr *multierror.Error) {
 	serviceObj := vu.Runtime().NewObject()
 
 	d, err := resolver.FindDescriptorByName(protoreflect.FullName(serviceName))
@@ -91,10 +80,10 @@ func makeServiceClient(resolver *resolver.Resolver, pkgname string, obj *goja.Ob
 
 		methodName := strings.ToLower(string(mdesc.Name()[0])) + string(mdesc.Name()[1:])
 
-		serviceEndpoint := strings.TrimSuffix(ep, "/") + "/" + string(desc.FullName()) + "/" + string(mdesc.Name())
-
 		cli := &client{
-			endpoint: serviceEndpoint,
+			service:  string(desc.FullName()),
+			method:   string(mdesc.Name()),
+			disc:     disc,
 			request:  mdesc.Input(),
 			response: mdesc.Output(),
 			cli:      cli.NewInsecureHttp2Client(),
@@ -108,13 +97,38 @@ func makeServiceClient(resolver *resolver.Resolver, pkgname string, obj *goja.Ob
 }
 
 type client struct {
-	endpoint string
+	service  string
+	method   string
+	disc     discovery.Discoverer
 	request  protoreflect.MessageDescriptor
 	response protoreflect.MessageDescriptor
 
 	rt *goja.Runtime
 
 	cli *http.Client
+}
+
+func (cli *client) resolveEndpoint() (string, error) {
+	parts := strings.Split(cli.service, ".")
+
+	queries := make([]string, len(parts))
+	for idx := 0; idx < len(parts); idx++ {
+		queries = append(queries, strings.Join(parts[:idx], "."))
+	}
+	slices.Reverse(queries)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	for _, q := range queries {
+		res, err := cli.disc.Discover(ctx, q)
+		if err == nil && len(res) > 0 {
+			ep := fmt.Sprintf("http://%s/%s/%s", res[0].Address, cli.service, cli.method)
+			return ep, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find a healthy service instance")
 }
 
 func (c *client) do(in *goja.Object, options *goja.Object) any {
@@ -128,7 +142,12 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 		common.Throw(c.rt, err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.endpoint, bytes.NewReader(blob))
+	ep, err := c.resolveEndpoint()
+	if err != nil {
+		common.Throw(c.rt, err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, ep, bytes.NewReader(blob))
 	if err != nil {
 		common.Throw(c.rt, err)
 	}

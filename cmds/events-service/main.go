@@ -19,12 +19,13 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
 	"github.com/tierklinik-dobersberg/apis/pkg/validator"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/bundle"
 	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/codec"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
-	"github.com/tierklinik-dobersberg/pbtype-server/resolver"
+	"github.com/tierklinik-dobersberg/pbtype-server/pkg/resolver"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
 	// Import all proto files from tkd/apis
@@ -136,6 +137,17 @@ func main() {
 		})
 	}
 
+	// get the service catalog
+	catalog, err := consuldiscover.NewFromEnv()
+	if err != nil {
+		slog.Error("failed to create service catalog client", "error", err)
+		os.Exit(-1)
+	}
+
+	options := []automation.EngineOption{
+		automation.WithDiscoverer(catalog),
+	}
+
 	// setup automation framework
 	if cfg.ScriptPath != "" {
 		slog.Info("searching for automation bundles", "path", cfg.ScriptPath)
@@ -151,7 +163,7 @@ func main() {
 			}
 
 			for _, bundle := range bundles {
-				if err := bundle.Prepare(*cfg, b); err != nil {
+				if err := bundle.Prepare(*cfg, b, options...); err != nil {
 					slog.Error("failed to prepare bundle", "name", bundle.Path, "error", err)
 					continue
 				}
@@ -159,12 +171,6 @@ func main() {
 				slog.Info("successfully prepare automation bundle", "name", bundle.Path)
 			}
 		}
-	}
-
-	catalog, err := consuldiscover.NewFromEnv()
-	if err != nil {
-		slog.Error("failed to create service catalog client", "error", err)
-		os.Exit(-1)
 	}
 
 	if err := discovery.Register(ctx, catalog, &discovery.ServiceInstance{

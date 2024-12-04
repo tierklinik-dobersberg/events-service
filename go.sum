@@ -269,6 +269,8 @@ github.com/tierklinik-dobersberg/apis v0.11.1-0.20241031074710-bdacbdb68822 h1:I
 github.com/tierklinik-dobersberg/apis v0.11.1-0.20241031074710-bdacbdb68822/go.mod h1:gtOs0/fU+Cxp2BafdcWTWxJ8yQ/GP5GfHeS9dK0t6p0=
 github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808 h1:0NxvYIp4hhY2CQ2glZh6WojJynVFxVsmtBvbrIXQ04c=
 github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808/go.mod h1:/3FaWydvwP/jTsg3jx77EvprBXZ0q2/NP0p/MYrNGtU=
+github.com/tierklinik-dobersberg/pbtype-server v0.2.1 h1:LqENb6il3sHAWj/mxZO5/8dKZER/PzcFrZqdgxWEJWI=
+github.com/tierklinik-dobersberg/pbtype-server v0.2.1/go.mod h1:1ovZldoot5lsioZYc5+HgvwbTPO31vqPRn03MWXv7Ro=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=

@@ -7,18 +7,24 @@ import (
 	"github.com/dop251/goja_nodejs/console"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery/noopdiscover"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
+	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
+	"github.com/tierklinik-dobersberg/pbtype-server/pkg/resolver"
 )
 
 type Engine struct {
-	name     string
-	loop     *eventloop.EventLoop
-	registry *require.Registry
-	ldr      require.SourceLoader
-	baseDir  string
-	cfg      config.Config
-	rt       *goja.Runtime
+	name       string
+	loop       *eventloop.EventLoop
+	registry   *require.Registry
+	ldr        require.SourceLoader
+	baseDir    string
+	cfg        config.Config
+	rt         *goja.Runtime
+	discoverer discovery.Discoverer
+	resolver   protoresolve.Resolver
 
 	moduleRegistry *modules.Registry
 }
@@ -40,6 +46,12 @@ func (e *Engine) Runtime() *goja.Runtime {
 }
 
 type EngineOption func(*Engine)
+
+func WithDiscoverer(disc discovery.Discoverer) EngineOption {
+	return func(e *Engine) {
+		e.discoverer = disc
+	}
+}
 
 func WithSourceLoader(ldr require.SourceLoader) EngineOption {
 	return func(e *Engine) {
@@ -79,6 +91,8 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		name:           name,
 		ldr:            require.DefaultSourceLoader,
 		moduleRegistry: modules.DefaultRegistry,
+		discoverer:     &noopdiscover.NoOpDiscoverer{},
+		resolver:       protoresolve.NewGlobalResolver(),
 	}
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
@@ -94,6 +108,15 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 	engine.loop = loop
 	engine.registry = registry
 
+	// prepare the protobuf type resolver
+	if cfg.TypeServerURL != "" {
+		engine.resolver = protoresolve.NewCombinedResolver(
+			resolver.New(cfg.TypeServerURL),
+			engine.resolver,
+		)
+	}
+
+	// prepare and enalbe the core-module
 	core := NewCoreModule(engine, broker)
 
 	loop.Run(func(r *goja.Runtime) {
@@ -124,6 +147,14 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 
 func (e *Engine) EventLoop() *eventloop.EventLoop {
 	return e.loop
+}
+
+func (e *Engine) Discoverer() discovery.Discoverer {
+	return e.discoverer
+}
+
+func (e *Engine) TypeResolver() protoresolve.Resolver {
+	return e.resolver
 }
 
 func (e *Engine) Run(fn func(*goja.Runtime) (goja.Value, error)) (goja.Value, error) {

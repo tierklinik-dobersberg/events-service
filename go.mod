@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/tierklinik-dobersberg/apis v0.11.1-0.20241031074710-bdacbdb68822
-	github.com/tierklinik-dobersberg/pbtype-server v0.1.1-0.20241013122600-6da21bf11808
+	github.com/tierklinik-dobersberg/pbtype-server v0.2.1
 	golang.org/x/text v0.19.0
 	google.golang.org/protobuf v1.35.1
 )
