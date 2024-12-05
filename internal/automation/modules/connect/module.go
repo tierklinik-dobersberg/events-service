@@ -113,8 +113,8 @@ func (cli *client) resolveEndpoint() (string, error) {
 
 	slog.Info("resolving service instance", "service", cli.service)
 
-	queries := make([]string, len(parts))
-	for idx := 0; idx < len(parts); idx++ {
+	queries := make([]string, 0, len(parts))
+	for idx := 1; idx <= len(parts); idx++ {
 		queries = append(queries, strings.Join(parts[:idx], "."))
 	}
 	slices.Reverse(queries)
