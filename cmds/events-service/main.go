@@ -15,6 +15,7 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/cors"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/consuldiscover"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery/noopdiscover"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
 	"github.com/tierklinik-dobersberg/apis/pkg/log"
 	"github.com/tierklinik-dobersberg/apis/pkg/server"
@@ -142,6 +143,10 @@ func main() {
 	if err != nil {
 		slog.Error("failed to create service catalog client", "error", err)
 		os.Exit(-1)
+	}
+
+	if _, ok := catalog.(*noopdiscover.NoOpDiscoverer); ok {
+		slog.Warn("no consul instance configured, service discovery will be disabled")
 	}
 
 	options := []automation.EngineOption{
