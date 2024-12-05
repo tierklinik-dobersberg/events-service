@@ -111,6 +111,8 @@ type client struct {
 func (cli *client) resolveEndpoint() (string, error) {
 	parts := strings.Split(cli.service, ".")
 
+	slog.Info("resolving service instance", "service", cli.service)
+
 	queries := make([]string, len(parts))
 	for idx := 0; idx < len(parts); idx++ {
 		queries = append(queries, strings.Join(parts[:idx], "."))
@@ -126,6 +128,8 @@ func (cli *client) resolveEndpoint() (string, error) {
 			ep := fmt.Sprintf("http://%s/%s/%s", res[0].Address, cli.service, cli.method)
 			return ep, nil
 		}
+
+		slog.Info("failed to resolve service instance", "query", q, "error", err)
 	}
 
 	return "", fmt.Errorf("failed to find a healthy service instance")
