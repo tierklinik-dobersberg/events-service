@@ -147,6 +147,8 @@ func main() {
 
 	if _, ok := catalog.(*noopdiscover.NoOpDiscoverer); ok {
 		slog.Warn("no consul instance configured, service discovery will be disabled")
+	} else {
+		slog.Info("consul service catalog configured, registration and service discovery enabled")
 	}
 
 	options := []automation.EngineOption{

@@ -48,7 +48,6 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			strings.TrimSuffix(serviceParts[len(serviceParts)-1], "Service"),
 		)
 
-		slog.Info("creating connect service", "jsModule", jsServiceName, "service-name", serviceName)
 		makeServiceClient(vu.Discoverer(), vu.TypeResolver(), jsServiceName, exports, vu, serviceName, merr)
 	}
 
@@ -124,12 +123,20 @@ func (cli *client) resolveEndpoint() (string, error) {
 
 	for _, q := range queries {
 		res, err := cli.disc.Discover(ctx, q)
-		if err == nil && len(res) > 0 {
-			ep := fmt.Sprintf("http://%s/%s/%s", res[0].Address, cli.service, cli.method)
-			return ep, nil
+		if err != nil {
+			slog.Error("failed to resolve service instance", "query", q, "error", err)
+
+			continue
 		}
 
-		slog.Info("failed to resolve service instance", "query", q, "error", err)
+		if len(res) == 0 {
+			slog.Error("no healthy service instances discovered, trying next query", "query", q, "error", err)
+
+			continue
+		}
+
+		ep := fmt.Sprintf("http://%s/%s/%s", res[0].Address, cli.service, cli.method)
+		return ep, nil
 	}
 
 	return "", fmt.Errorf("failed to find a healthy service instance")
@@ -161,6 +168,7 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 
 	if options != nil {
 		slog.Info("preparing custom HTTP headers")
+
 		headerObj := options.Get("headers")
 		if headerObj != nil {
 			if headers, ok := headerObj.(*goja.Object); ok {
