@@ -244,6 +244,24 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 		return err
 	}
 
+	// try to load the vars.json file
+	varsPath := filepath.Join(bundle.Path, "vars.json")
+	content, err := os.ReadFile(varsPath)
+
+	var params map[string]any
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(content, &params); err != nil {
+			return fmt.Errorf("failed to parse vars.json file: %w", err)
+		}
+
+	case errors.Is(err, os.ErrNotExist):
+		// nothing to do
+
+	default:
+		return fmt.Errorf("failed to read vars.json file: %w", err)
+	}
+
 	bundle.runtime = runtime
 
 	bundle.lock.Unlock()
@@ -251,14 +269,8 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 	bundle.runtime.Run(func(r *goja.Runtime) (goja.Value, error) {
 		// for each parameter, set a global variable in the automation engine.
 		for name, value := range bundle.AutomationConfig.Parameters {
-			if v := os.Getenv(name); v != "" {
-				var parsed any
-
-				if err := json.Unmarshal([]byte(v), &parsed); err != nil {
-					return nil, fmt.Errorf("failed to parse parameter %q: %w", name err)
-				}
-
-				value = parsed
+			if v, ok := params[name]; ok {
+				value = v
 			}
 
 			if err := r.GlobalObject().Set(name, value); err != nil {
