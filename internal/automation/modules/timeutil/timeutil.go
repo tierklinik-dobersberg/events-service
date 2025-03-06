@@ -8,6 +8,7 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/timeutil"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Module struct{}
@@ -49,6 +50,13 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		}
 
 		return res
+	})
+
+	obj.Set("createRange", func(start time.Time, end time.Time) *commonv1.TimeRange {
+		return &commonv1.TimeRange{
+			From: timestamppb.New(start),
+			To:   timestamppb.New(end),
+		}
 	})
 
 	return obj, nil
