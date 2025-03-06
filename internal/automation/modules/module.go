@@ -10,7 +10,11 @@ import (
 )
 
 type AutomationAnnotation struct {
+	// ConnectHeaders can be used to set custom header for each connect-rpc request.
 	ConnectHeaders map[string]string `json:"connectHeaders"`
+
+	// Parameters hold automation parameters and their default value.
+	Parameters map[string]any `json:"parameters"`
 }
 
 type VU interface {

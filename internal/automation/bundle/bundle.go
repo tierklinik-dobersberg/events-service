@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dop251/goja"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
@@ -246,6 +247,27 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 	bundle.runtime = runtime
 
 	bundle.lock.Unlock()
+
+	bundle.runtime.Run(func(r *goja.Runtime) (goja.Value, error) {
+		// for each parameter, set a global variable in the automation engine.
+		for name, value := range bundle.AutomationConfig.Parameters {
+			if v := os.Getenv(name); v != "" {
+				var parsed any
+
+				if err := json.Unmarshal([]byte(v), &parsed); err != nil {
+					return nil, fmt.Errorf("failed to parse parameter %q: %w", name err)
+				}
+
+				value = parsed
+			}
+
+			if err := r.GlobalObject().Set(name, value); err != nil {
+				return nil, err
+			}
+		}
+
+		return nil, nil
+	})
 
 	// finally, execute the main entry point script
 	if _, err := bundle.runtime.RunScript(bundle.ScriptContent); err != nil {

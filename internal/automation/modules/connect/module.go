@@ -114,8 +114,6 @@ type client struct {
 func (cli *client) resolveEndpoint() (string, error) {
 	parts := strings.Split(cli.service, ".")
 
-	slog.Info("resolving service instance", "service", cli.service)
-
 	queries := make([]string, 0, len(parts))
 	for idx := 1; idx <= len(parts); idx++ {
 		queries = append(queries, strings.Join(parts[:idx], "."))
@@ -134,7 +132,6 @@ func (cli *client) resolveEndpoint() (string, error) {
 		}
 
 		if len(res) == 0 {
-			slog.Error("no healthy service instances discovered, trying next query", "query", q)
 			continue
 		}
 
