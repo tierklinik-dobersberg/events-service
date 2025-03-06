@@ -88,6 +88,7 @@ func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver
 			cli:      cli.NewInsecureHttp2Client(),
 			rt:       vu.Runtime(),
 			headers:  cfg.ConnectHeaders,
+			resolver: resolver,
 		}
 
 		serviceObj.Set(methodName, cli.do)
@@ -103,6 +104,7 @@ type client struct {
 	request  protoreflect.MessageDescriptor
 	response protoreflect.MessageDescriptor
 	headers  map[string]string
+	resolver protoresolve.Resolver
 
 	rt *goja.Runtime
 
@@ -144,7 +146,7 @@ func (cli *client) resolveEndpoint() (string, error) {
 }
 
 func (c *client) do(in *goja.Object, options *goja.Object) any {
-	payload, err := ObjectToProto(in, c.request)
+	payload, err := ObjectToProto(in, c.request, c.resolver)
 	if err != nil {
 		common.Throw(c.rt, err)
 	}
@@ -243,7 +245,7 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 	return m
 }
 
-func ObjectToProto(in *goja.Object, out protoreflect.MessageDescriptor) (proto.Message, error) {
+func ObjectToProto(in *goja.Object, out protoreflect.MessageDescriptor, resolver protoresolve.Resolver) (proto.Message, error) {
 	msg := dynamicpb.NewMessage(out)
 
 	blob, err := json.Marshal(in)
@@ -251,15 +253,15 @@ func ObjectToProto(in *goja.Object, out protoreflect.MessageDescriptor) (proto.M
 		return nil, fmt.Errorf("failed to convert goja.Object to JSON: %w", err)
 	}
 
-	if err := protojson.Unmarshal(blob, msg); err != nil {
+	if err := (protojson.UnmarshalOptions{Resolver: resolver}).Unmarshal(blob, msg); err != nil {
 		return nil, fmt.Errorf("failed to convert goja.Object to proto.Message: (%s) %w", string(blob), err)
 	}
 
 	return msg, nil
 }
 
-func ConvertProtoMessage(msg proto.Message) (any, error) {
-	jsonBlob, err := protojson.Marshal(msg)
+func ConvertProtoMessage(msg proto.Message, resolver protoresolve.Resolver) (any, error) {
+	jsonBlob, err := (protojson.MarshalOptions{UseProtoNames: true, Resolver: resolver}).Marshal(msg)
 	if err != nil {
 		return nil, err
 	}

@@ -88,7 +88,7 @@ func (c *CoreModule) publish(typeUrl string, obj *goja.Object) error {
 		return fmt.Errorf("invalid type url")
 	}
 
-	msg, err := connect.ObjectToProto(obj, md)
+	msg, err := connect.ObjectToProto(obj, md, c.engine.resolver)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 		defer slog.Info("automation: subscription loop closed", "name", c.engine.name)
 		for m := range msgs {
 			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
-			o, err := connect.ConvertProtoMessage(m)
+			o, err := connect.ConvertProtoMessage(m, c.engine.resolver)
 			if err != nil {
 				slog.Error("failed to convert protobuf message", "error", err)
 				continue
