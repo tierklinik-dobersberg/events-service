@@ -48,13 +48,13 @@ func (*ConnectModule) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			strings.TrimSuffix(serviceParts[len(serviceParts)-1], "Service"),
 		)
 
-		makeServiceClient(vu.Discoverer(), vu.TypeResolver(), jsServiceName, exports, vu, serviceName, merr)
+		makeServiceClient(vu.Discoverer(), vu.TypeResolver(), jsServiceName, exports, vu, serviceName, vu.AutomationConfig(), merr)
 	}
 
 	return exports, merr.ErrorOrNil()
 }
 
-func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver, pkgname string, obj *goja.Object, vu modules.VU, serviceName string, merr *multierror.Error) {
+func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver, pkgname string, obj *goja.Object, vu modules.VU, serviceName string, cfg modules.AutomationAnnotation, merr *multierror.Error) {
 	serviceObj := vu.Runtime().NewObject()
 
 	d, err := resolver.FindDescriptorByName(protoreflect.FullName(serviceName))
@@ -87,6 +87,7 @@ func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver
 			response: mdesc.Output(),
 			cli:      cli.NewInsecureHttp2Client(),
 			rt:       vu.Runtime(),
+			headers:  cfg.ConnectHeaders,
 		}
 
 		serviceObj.Set(methodName, cli.do)
@@ -101,6 +102,7 @@ type client struct {
 	disc     discovery.Discoverer
 	request  protoreflect.MessageDescriptor
 	response protoreflect.MessageDescriptor
+	headers  map[string]string
 
 	rt *goja.Runtime
 
@@ -164,6 +166,11 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+
+	// apply custom headers
+	for h, v := range c.headers {
+		req.Header.Set(h, v)
+	}
 
 	if options != nil {
 		slog.Info("preparing custom HTTP headers")

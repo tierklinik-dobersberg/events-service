@@ -16,15 +16,16 @@ import (
 )
 
 type Engine struct {
-	name       string
-	loop       *eventloop.EventLoop
-	registry   *require.Registry
-	ldr        require.SourceLoader
-	baseDir    string
-	cfg        config.Config
-	rt         *goja.Runtime
-	discoverer discovery.Discoverer
-	resolver   protoresolve.Resolver
+	name             string
+	loop             *eventloop.EventLoop
+	registry         *require.Registry
+	ldr              require.SourceLoader
+	baseDir          string
+	cfg              config.Config
+	rt               *goja.Runtime
+	discoverer       discovery.Discoverer
+	resolver         protoresolve.Resolver
+	automationConfig modules.AutomationAnnotation
 
 	moduleRegistry *modules.Registry
 }
@@ -68,6 +69,12 @@ func WithBaseDirectory(dir string) EngineOption {
 func WithModulsRegistry(reg *modules.Registry) EngineOption {
 	return func(e *Engine) {
 		e.moduleRegistry = reg
+	}
+}
+
+func WithAutomationConfig(cfg modules.AutomationAnnotation) EngineOption {
+	return func(e *Engine) {
+		e.automationConfig = cfg
 	}
 }
 
@@ -143,6 +150,10 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 	}
 
 	return engine, nil
+}
+
+func (e *Engine) AutomationConfig() modules.AutomationAnnotation {
+	return e.automationConfig
 }
 
 func (e *Engine) EventLoop() *eventloop.EventLoop {

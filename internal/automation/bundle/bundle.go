@@ -13,11 +13,9 @@ import (
 	"time"
 
 	"github.com/tierklinik-dobersberg/events-service/internal/automation"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 )
-
-type AutomationAnnotation struct {
-}
 
 type PackageJSON struct {
 	// Main defines the entrypoint script
@@ -31,7 +29,7 @@ type PackageJSON struct {
 
 	// Automation holds additional information for the automation
 	// engine.
-	Automation AutomationAnnotation `json:"automation"`
+	Automation modules.AutomationAnnotation `json:"automation"`
 }
 
 type Log struct {
@@ -56,6 +54,8 @@ type Bundle struct {
 
 	// ScriptContent holds the content of the main entrypoint file.
 	ScriptContent string
+
+	AutomationConfig modules.AutomationAnnotation
 
 	lock    sync.Mutex
 	runtime *automation.Engine
@@ -181,10 +181,11 @@ func Load(path string) (*Bundle, error) {
 	}
 
 	bundle := &Bundle{
-		Path:    path,
-		Main:    parsed.Main,
-		Version: parsed.Version,
-		License: parsed.License,
+		Path:             path,
+		Main:             parsed.Main,
+		Version:          parsed.Version,
+		License:          parsed.License,
+		AutomationConfig: parsed.Automation,
 	}
 
 	script, err := os.ReadFile(filepath.Join(path, bundle.Main))
@@ -233,6 +234,7 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 	opts = append([]automation.EngineOption{
 		automation.WithConsole(bundle),
 		automation.WithBaseDirectory(bundle.Path),
+		automation.WithAutomationConfig(bundle.AutomationConfig),
 	}, opts...)
 
 	runtime, err := automation.New(bundle.Path, cfg, broker, opts...)

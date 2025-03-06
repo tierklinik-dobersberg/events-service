@@ -9,6 +9,10 @@ import (
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
 )
 
+type AutomationAnnotation struct {
+	ConnectHeaders map[string]string `json:"connectHeaders"`
+}
+
 type VU interface {
 	// Runtime returns a reference to the actual goja runtime.
 	Runtime() *goja.Runtime
@@ -30,6 +34,8 @@ type VU interface {
 	// PackagePath returns the path of the parent directory that contains
 	// the loaded and executed automation package.
 	PackagePath() string
+
+	AutomationConfig() AutomationAnnotation
 
 	// EventLoop returns the underlying event loop
 	EventLoop() *eventloop.EventLoop
