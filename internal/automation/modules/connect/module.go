@@ -130,8 +130,7 @@ func (cli *client) resolveEndpoint() (string, error) {
 		}
 
 		if len(res) == 0 {
-			slog.Error("no healthy service instances discovered, trying next query", "query", q, "error", err)
-
+			slog.Error("no healthy service instances discovered, trying next query", "query", q)
 			continue
 		}
 

@@ -127,6 +127,11 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		core.Enable(r)
 	})
 
+	// Apply any engine options
+	for _, opt := range opts {
+		opt(engine)
+	}
+
 	// start the loop before applying any engine options
 	engine.loop.Start()
 
@@ -135,11 +140,6 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		if _, err := engine.moduleRegistry.EnableModules(engine); err != nil {
 			return nil, err
 		}
-	}
-
-	// Apply any engine options
-	for _, opt := range opts {
-		opt(engine)
 	}
 
 	return engine, nil

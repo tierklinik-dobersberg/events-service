@@ -33,6 +33,16 @@ func TestDateModule(t *testing.T) {
 		if (!(end instanceof Date)) {
 			throw new Error("expected a date object, got: " + (typeof end) + " " + end.format("2006-01-02"))
 		}
+
+		const range = timeutil.parseDayTimeRange("06:30 - 07:00")
+		if (range.start == null || range.end == null) {
+			throw new Error("expected start and end time to be parsed " + range);
+		}
+		
+		if (range.start.hour != 6 || range.start.minute != 30) {
+			throw new Error("expected start to be parsed correctly")
+		}
+
 	`)
 
 	require.NoError(t, err)

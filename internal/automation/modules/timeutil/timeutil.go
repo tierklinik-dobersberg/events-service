@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
+	commonv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/common/v1"
 	"github.com/tierklinik-dobersberg/apis/pkg/timeutil"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 )
 
@@ -30,6 +32,24 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 	obj.Set("parseStart", timeutil.ParseStart)
 	obj.Set("parseEnd", timeutil.ParseEnd)
+
+	obj.Set("parseDayTime", func(input string) *commonv1.DayTime {
+		res, err := commonv1.ParseDayTime(input)
+		if err != nil {
+			common.Throw(rt, err)
+		}
+
+		return res
+	})
+
+	obj.Set("parseDayTimeRange", func(input string) *commonv1.DayTimeRange {
+		res, err := commonv1.ParseDayTimeRange(input)
+		if err != nil {
+			common.Throw(rt, err)
+		}
+
+		return res
+	})
 
 	return obj, nil
 }
