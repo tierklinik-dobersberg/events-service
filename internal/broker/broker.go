@@ -11,6 +11,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,6 +28,8 @@ type Broker struct {
 	l         sync.RWMutex
 	receivers map[string][]chan *eventsv1.Event
 	topics    map[string]struct{}
+
+	single singleflight.Group
 
 	retainedMsgs map[string]*eventsv1.Event
 
@@ -105,20 +108,25 @@ func (b *Broker) Subscribe(typeUrl string, msgs chan *eventsv1.Event) {
 }
 
 func (b *Broker) subscribe(typeUrl string) {
-	b.connLock.Lock()
-	defer b.connLock.Unlock()
-
 	topic := makeTopic(typeUrl)
-	if err := b.conn.Subscribe(topic, 0, b.handleMessage); err != nil {
-		b.log.Error("failed to subscribe to topic", "topic", topic)
-	} else {
-		b.log.Info("successfully subscribed to topic", "topic", topic)
 
-		b.l.Lock()
-		defer b.l.Unlock()
+	b.single.Do(topic, func() (any, error) {
+		b.connLock.Lock()
+		defer b.connLock.Unlock()
 
-		b.topics[typeUrl] = struct{}{}
-	}
+		if err := b.conn.Subscribe(topic, 0, b.handleMessage); err != nil {
+			b.log.Error("failed to subscribe to topic", "topic", topic)
+		} else {
+			b.log.Info("successfully subscribed to topic", "topic", topic)
+
+			b.l.Lock()
+			defer b.l.Unlock()
+
+			b.topics[typeUrl] = struct{}{}
+		}
+
+		return nil, nil
+	})
 }
 
 func (b *Broker) UnsubscribeAll(msgs chan *eventsv1.Event) {

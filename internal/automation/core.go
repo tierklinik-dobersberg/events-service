@@ -106,8 +106,6 @@ func (c *CoreModule) publish(typeUrl string, obj *goja.Object) error {
 func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 	msgs := make(chan *eventsv1.Event, 100)
 
-	slog.Info("automation: script is subscribing to event topic", "event", event, "name", c.engine.name)
-
 	c.broker.Subscribe(event, msgs)
 
 	slog.Info("automation: script successfully subscribed to event topic", "event", event, "name", c.engine.name)
