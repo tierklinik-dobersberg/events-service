@@ -267,13 +267,15 @@ func (bundle *Bundle) Prepare(cfg config.Config, broker automation.Broker, opts 
 	bundle.lock.Unlock()
 
 	bundle.runtime.Run(func(r *goja.Runtime) (goja.Value, error) {
-		// for each parameter, set a global variable in the automation engine.
+		// for each parameter, set a global variable in the automation engine using
+		// the value from the vars.json file. Otherwise fallback to the default value
+		// specified in the package.json file.
 		for name, value := range bundle.AutomationConfig.Parameters {
 			if v, ok := params[name]; ok {
 				value = v
 			}
 
-			if err := r.GlobalObject().Set(name, value); err != nil {
+			if err := r.Set(name, value); err != nil {
 				return nil, err
 			}
 		}
