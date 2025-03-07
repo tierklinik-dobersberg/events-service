@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 
@@ -60,11 +61,11 @@ func (s *Subscriber) Handle(ctx context.Context) error {
 
 			switch v := msg.Kind.(type) {
 			case *eventsv1.SubscribeRequest_Subscribe:
-				s.log.Info("subscribing to topic", "topic", v.Subscribe)
+				s.log.Debug("subscribing to topic", "topic", v.Subscribe)
 				s.broker.Subscribe(v.Subscribe, msgs)
 
 			default:
-				s.log.Error("unhandled message")
+				s.log.Error("unhandled message", "type", fmt.Sprintf("%T", msg.Kind))
 			}
 		}
 	}()
