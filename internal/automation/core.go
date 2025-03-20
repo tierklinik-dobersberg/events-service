@@ -90,6 +90,10 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 		})
 	} else {
 		op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
+			var (
+				result    any
+				resultErr error
+			)
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				this := r.ToValue(this)
 				a := make([]goja.Value, len(args))
@@ -97,10 +101,16 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					a[idx] = r.ToValue(arg)
 				}
 
-				callable(this, a...)
+				gv, err := callable(this, a...)
+
+				if err == nil {
+					result = gv.Export()
+				} else {
+					resultErr = err
+				}
 			})
 
-			return nil, nil
+			return result, resultErr
 		}, func(req *longrunningv1.RegisterOperationRequest) {
 			req.Kind = kind
 			req.Owner = "automation"
