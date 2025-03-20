@@ -64,6 +64,8 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 	slog.Info("automation: new schedule registered", "schedule", schedule, "name", c.engine.name)
 
 	res, err := c.scheduler.AddFunc(schedule, func() {
+		slog.Info("triggering automation schedule", "schedule", schedule, "name", c.engine.name)
+
 		c.wrapOperation(callable, "schedule:"+schedule, nil)
 	})
 	if err != nil {
