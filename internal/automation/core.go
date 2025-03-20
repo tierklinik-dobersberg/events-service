@@ -1,6 +1,7 @@
 package automation
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,7 +10,10 @@ import (
 	"github.com/dop251/goja"
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
+	longrunningv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/longrunning/v1"
+	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
+	"github.com/tierklinik-dobersberg/longrunning-service/pkg/op"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -60,17 +64,49 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 	slog.Info("automation: new schedule registered", "schedule", schedule, "name", c.engine.name)
 
 	res, err := c.scheduler.AddFunc(schedule, func() {
-		c.engine.Run(func(r *goja.Runtime) (goja.Value, error) {
-			_, err := callable(nil)
-
-			return nil, err
-		})
+		c.wrapOperation(callable, "schedule:"+schedule, nil)
 	})
 	if err != nil {
 		return -1, err
 	}
 
 	return int(res), nil
+}
+
+func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any, args ...any) {
+	cli, err := wellknown.LongRunningService.Create(context.Background(), c.engine.discoverer)
+
+	if err != nil || cli == nil {
+		slog.Error("failed to get longrunning service instance", "error", err)
+
+		c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
+			this := r.ToValue(this)
+			a := make([]goja.Value, len(args))
+			for idx, arg := range args {
+				a[idx] = r.ToValue(arg)
+			}
+
+			callable(this, a...)
+		})
+	} else {
+		op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
+			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
+				this := r.ToValue(this)
+				a := make([]goja.Value, len(args))
+				for idx, arg := range args {
+					a[idx] = r.ToValue(arg)
+				}
+
+				callable(this, a...)
+			})
+
+			return nil, nil
+		}, func(req *longrunningv1.RegisterOperationRequest) {
+			req.Kind = kind
+			req.Owner = "automation"
+			req.Description = c.engine.name
+		})
+	}
 }
 
 func (c *CoreModule) clearSchedule(id int) {
@@ -114,6 +150,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 		defer slog.Info("automation: subscription loop closed", "name", c.engine.name)
 		for m := range msgs {
 			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
+
 			o, err := connect.ConvertProtoMessage(m, c.engine.resolver)
 			if err != nil {
 				slog.Error("failed to convert protobuf message", "error", err)
@@ -122,9 +159,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 
 			slog.Info("running automation for event", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
 
-			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
-				callable(nil, r.ToValue(o))
-			})
+			c.wrapOperation(callable, "event:"+event, nil, o)
 		}
 	}()
 }
