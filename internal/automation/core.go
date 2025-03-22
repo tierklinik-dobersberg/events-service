@@ -68,7 +68,7 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 	res, err := c.scheduler.AddFunc(schedule, func() {
 		c.engine.log.Info("triggering automation schedule", "schedule", schedule)
 
-		c.wrapOperation(callable, "schedule:"+schedule, nil)
+		c.wrapOperation(callable, "schedule:"+fmt.Sprintf("%q", schedule), nil)
 	})
 	if err != nil {
 		return -1, err
@@ -194,7 +194,7 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 
 			c.engine.log.Info("running automation for event", "typeUrl", m.Event.TypeUrl)
 
-			c.wrapOperation(callable, "event:"+event, nil, o)
+			c.wrapOperation(callable, "event:"+fmt.Sprintf("%q", event), nil, o)
 		}
 	}()
 }
