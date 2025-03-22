@@ -60,7 +60,7 @@ require (
 	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
-	github.com/tierklinik-dobersberg/longrunning-service v0.0.4-0.20250322083202-0996f8c4974e // indirect
+	github.com/tierklinik-dobersberg/longrunning-service v0.0.4-0.20250322083940-222234ef621d // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
