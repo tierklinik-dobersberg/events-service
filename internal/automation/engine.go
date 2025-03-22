@@ -1,6 +1,7 @@
 package automation
 
 import (
+	"log/slog"
 	"path/filepath"
 
 	"github.com/dop251/goja"
@@ -26,6 +27,7 @@ type Engine struct {
 	discoverer       discovery.Discoverer
 	resolver         protoresolve.Resolver
 	automationConfig modules.AutomationAnnotation
+	log              *slog.Logger
 
 	moduleRegistry *modules.Registry
 }
@@ -100,6 +102,9 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		moduleRegistry: modules.DefaultRegistry,
 		discoverer:     &noopdiscover.NoOpDiscoverer{},
 		resolver:       protoresolve.NewGlobalResolver(),
+		log: slog.Default().With(
+			slog.String("automation", name),
+		),
 	}
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
@@ -154,6 +159,10 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 
 func (e *Engine) AutomationConfig() modules.AutomationAnnotation {
 	return e.automationConfig
+}
+
+func (e *Engine) Log() *slog.Logger {
+	return e.log
 }
 
 func (e *Engine) EventLoop() *eventloop.EventLoop {

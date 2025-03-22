@@ -12,6 +12,7 @@ import (
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	longrunningv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/longrunning/v1"
+	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/longrunning/v1/longrunningv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
 	"github.com/tierklinik-dobersberg/longrunning-service/pkg/op"
@@ -62,10 +63,10 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 }
 
 func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, error) {
-	slog.Info("automation: new schedule registered", "schedule", schedule, "name", c.engine.name)
+	c.engine.log.Info("automation: new schedule registered", "schedule", schedule)
 
 	res, err := c.scheduler.AddFunc(schedule, func() {
-		slog.Info("triggering automation schedule", "schedule", schedule, "name", c.engine.name)
+		c.engine.log.Info("triggering automation schedule", "schedule", schedule)
 
 		c.wrapOperation(callable, "schedule:"+schedule, nil)
 	})
@@ -77,15 +78,17 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 }
 
 func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any, args ...any) {
-	cli, err := wellknown.LongRunningService.Create(context.Background(), c.engine.discoverer)
+	var cli longrunningv1connect.LongRunningServiceClient
+	if c.engine.automationConfig.WrapInOperation {
+		var err error
 
-	log := slog.Default().With(
-		slog.String("automation", c.engine.name),
-	)
+		cli, err = wellknown.LongRunningService.Create(context.Background(), c.engine.discoverer)
+		if err != nil {
+			c.engine.log.Error("failed to get longrunning service instance", "error", err)
+		}
+	}
 
-	if err != nil || cli == nil || !c.engine.AutomationConfig().WrapInOperation {
-		log.Error("failed to get longrunning service instance", "error", err)
-
+	if cli == nil {
 		c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 			this := r.ToValue(this)
 			a := make([]goja.Value, len(args))
@@ -96,8 +99,6 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			callable(this, a...)
 		})
 	} else {
-		log.Debug("got long running service instance")
-
 		_, err := op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
 
 			var (
@@ -105,7 +106,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 				resultErr error
 			)
 
-			log.Info("scheduling operation on event loop")
+			c.engine.log.Info("scheduling operation on event loop")
 
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				this := r.ToValue(this)
@@ -114,7 +115,6 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					a[idx] = r.ToValue(arg)
 				}
 
-				log.Info("arguments perpare, running goja callable ...")
 				gv, err := callable(this, a...)
 
 				if err == nil {
@@ -139,7 +139,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 		})
 
 		if err != nil {
-			log.Error("failed to execute goja callable", "error", err)
+			c.engine.log.Error("failed to execute goja callable", "error", err)
 		}
 	}
 }
@@ -179,20 +179,20 @@ func (c *CoreModule) onEvent(event string, callable goja.Callable) {
 
 	c.broker.Subscribe(event, msgs)
 
-	slog.Info("automation: script successfully subscribed to event topic", "event", event, "name", c.engine.name)
+	c.engine.log.Info("automation: script successfully subscribed to event topic", "event", event)
 
 	go func() {
-		defer slog.Info("automation: subscription loop closed", "name", c.engine.name)
+		defer c.engine.log.Info("automation: subscription loop closed")
 		for m := range msgs {
-			slog.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
+			c.engine.log.Info("automation: received event, converting from proto-message", "typeUrl", m.Event.TypeUrl)
 
 			o, err := connect.ConvertProtoMessage(m, c.engine.resolver)
 			if err != nil {
-				slog.Error("failed to convert protobuf message", "error", err)
+				c.engine.log.Error("failed to convert protobuf message", "error", err)
 				continue
 			}
 
-			slog.Info("running automation for event", "typeUrl", m.Event.TypeUrl, "name", c.engine.name)
+			c.engine.log.Info("running automation for event", "typeUrl", m.Event.TypeUrl)
 
 			c.wrapOperation(callable, "event:"+event, nil, o)
 		}

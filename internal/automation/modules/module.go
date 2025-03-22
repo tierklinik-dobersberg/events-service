@@ -1,6 +1,8 @@
 package modules
 
 import (
+	"log/slog"
+
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
@@ -43,7 +45,11 @@ type VU interface {
 	// the loaded and executed automation package.
 	PackagePath() string
 
+	// AutomationConfig returns the automation configuration.
 	AutomationConfig() AutomationAnnotation
+
+	// Log returns the engine's logger
+	Log() *slog.Logger
 
 	// EventLoop returns the underlying event loop
 	EventLoop() *eventloop.EventLoop

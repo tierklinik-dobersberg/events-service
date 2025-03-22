@@ -301,7 +301,7 @@ func (bundle *Bundle) internalLog(lvl slog.Level, msg string) {
 		Message: msg,
 	})
 
-	slog.Log(context.TODO(), lvl, msg)
+	bundle.runtime.Log().Log(context.TODO(), lvl, msg)
 }
 
 // Log logs an info level message. It implements the console.Printer interface.
