@@ -78,8 +78,12 @@ func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, err
 func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any, args ...any) {
 	cli, err := wellknown.LongRunningService.Create(context.Background(), c.engine.discoverer)
 
+	log := slog.Default().With(
+		slog.String("automation", c.engine.name),
+	)
+
 	if err != nil || cli == nil {
-		slog.Error("failed to get longrunning service instance", "error", err)
+		log.Error("failed to get longrunning service instance", "error", err)
 
 		c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 			this := r.ToValue(this)
@@ -91,16 +95,16 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			callable(this, a...)
 		})
 	} else {
-		slog.Info("got long running service instance")
+		log.Debug("got long running service instance")
 
-		op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
+		_, err := op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
 
 			var (
 				result    any
 				resultErr error
 			)
 
-			slog.Info("scheduling operation on event loop")
+			log.Info("scheduling operation on event loop")
 
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				this := r.ToValue(this)
@@ -109,7 +113,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					a[idx] = r.ToValue(arg)
 				}
 
-				slog.Info("arguments perpare, running goja callable ...")
+				log.Info("arguments perpare, running goja callable ...")
 				gv, err := callable(this, a...)
 
 				if err == nil {
@@ -125,6 +129,10 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			req.Owner = "automation"
 			req.Description = c.engine.name
 		})
+
+		if err != nil {
+			log.Error("failed to execute goja callable", "error", err)
+		}
 	}
 }
 
