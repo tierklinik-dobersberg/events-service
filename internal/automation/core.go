@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	connect_go "github.com/bufbuild/connect-go"
 	"github.com/dop251/goja"
 	cron "github.com/robfig/cron/v3"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
@@ -124,10 +125,17 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			})
 
 			return result, resultErr
-		}, func(req *longrunningv1.RegisterOperationRequest) {
-			req.Kind = kind
-			req.Owner = "automation"
-			req.Description = c.engine.name
+		}, func(req *connect_go.Request[longrunningv1.RegisterOperationRequest]) {
+			req.Msg.Kind = kind
+			req.Msg.Owner = "automation"
+			req.Msg.Description = c.engine.name
+
+			cfg := c.engine.AutomationConfig()
+			if len(cfg.ConnectHeaders) > 0 {
+				for key, value := range cfg.ConnectHeaders {
+					req.Header().Add(key, value)
+				}
+			}
 		})
 
 		if err != nil {
