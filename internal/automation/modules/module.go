@@ -15,6 +15,10 @@ type AutomationAnnotation struct {
 
 	// Parameters hold automation parameters and their default value.
 	Parameters map[string]any `json:"parameters"`
+
+	// WrapInOpertaion can be set to true to wrap any event and schedule
+	// callbacks in long-running operations.
+	WrapInOperation bool `json:"wrapInOperation"`
 }
 
 type VU interface {

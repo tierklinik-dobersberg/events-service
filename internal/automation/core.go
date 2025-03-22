@@ -83,7 +83,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 		slog.String("automation", c.engine.name),
 	)
 
-	if err != nil || cli == nil {
+	if err != nil || cli == nil || !c.engine.AutomationConfig().WrapInOperation {
 		log.Error("failed to get longrunning service instance", "error", err)
 
 		c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
