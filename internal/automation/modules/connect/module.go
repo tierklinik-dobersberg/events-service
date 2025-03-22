@@ -89,6 +89,7 @@ func makeServiceClient(disc discovery.Discoverer, resolver protoresolve.Resolver
 			rt:       vu.Runtime(),
 			headers:  cfg.ConnectHeaders,
 			resolver: resolver,
+			log:      vu.Log(),
 		}
 
 		serviceObj.Set(methodName, cli.do)
@@ -105,6 +106,7 @@ type client struct {
 	response protoreflect.MessageDescriptor
 	headers  map[string]string
 	resolver protoresolve.Resolver
+	log      *slog.Logger
 
 	rt *goja.Runtime
 
@@ -126,7 +128,7 @@ func (cli *client) resolveEndpoint() (string, error) {
 	for _, q := range queries {
 		res, err := cli.disc.Discover(ctx, q)
 		if err != nil {
-			slog.Error("failed to resolve service instance", "query", q, "error", err)
+			cli.log.Error("failed to resolve service instance", "query", q, "error", err)
 
 			continue
 		}
@@ -172,7 +174,7 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 	}
 
 	if options != nil {
-		slog.Info("preparing custom HTTP headers")
+		c.log.Info("preparing custom HTTP headers")
 
 		headerObj := options.Get("headers")
 		if headerObj != nil {
@@ -190,16 +192,16 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 							if s, ok := el.(string); ok {
 								req.Header.Add(key, s)
 							} else {
-								slog.Warn("ignoring custom header value", "header", key, "value", el)
+								c.log.Warn("ignoring custom header value", "header", key, "value", el)
 							}
 						}
 
 					default:
-						slog.Warn("ignoring custom header value", "header", key, "value", val)
+						c.log.Warn("ignoring custom header value", "header", key, "value", val)
 					}
 				}
 			} else {
-				slog.Warn("ignoring custom request headers, unsupported type", "type", fmt.Sprintf("%T", headerObj))
+				c.log.Warn("ignoring custom request headers, unsupported type", "type", fmt.Sprintf("%T", headerObj))
 			}
 		}
 
