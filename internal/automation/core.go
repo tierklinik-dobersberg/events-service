@@ -91,11 +91,17 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			callable(this, a...)
 		})
 	} else {
+		slog.Info("got long running service instance")
+
 		op.Wrap(context.Background(), cli, func(context.Context) (any, error) {
+
 			var (
 				result    any
 				resultErr error
 			)
+
+			slog.Info("scheduling operation on event loop")
+
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				this := r.ToValue(this)
 				a := make([]goja.Value, len(args))
@@ -103,6 +109,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					a[idx] = r.ToValue(arg)
 				}
 
+				slog.Info("arguments perpare, running goja callable ...")
 				gv, err := callable(this, a...)
 
 				if err == nil {
