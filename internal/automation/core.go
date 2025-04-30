@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	connect_go "github.com/bufbuild/connect-go"
@@ -150,6 +151,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			})
 
 			prevLog = c.engine.log.AddLogger(opLogger)
+			defer c.engine.log.RemoveLogger(opLogger)
 
 			var (
 				result    any
@@ -158,7 +160,12 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 
 			c.engine.log.Log(context.Background(), slog.LevelInfo, "scheduling operation on event loop")
 
+			var wg sync.WaitGroup
+			wg.Add(1)
+
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
+				defer wg.Done()
+
 				this := r.ToValue(this)
 				a := make([]goja.Value, len(args))
 				for idx, arg := range args {
@@ -173,6 +180,8 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					resultErr = err
 				}
 			})
+
+			wg.Wait()
 
 			return result, resultErr
 		}, func(req *connect_go.Request[longrunningv1.RegisterOperationRequest]) {
