@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/dop251/goja"
@@ -21,6 +22,16 @@ type AutomationAnnotation struct {
 	// WrapInOpertaion can be set to true to wrap any event and schedule
 	// callbacks in long-running operations.
 	WrapInOperation bool `json:"wrapInOperation"`
+}
+
+type Logger interface {
+	Log(context.Context, slog.Level, string, ...any)
+}
+
+type LoggerFunc func(context.Context, slog.Level, string, ...any)
+
+func (fn LoggerFunc) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	fn(ctx, level, msg, args...)
 }
 
 type VU interface {
@@ -49,7 +60,7 @@ type VU interface {
 	AutomationConfig() AutomationAnnotation
 
 	// Log returns the engine's logger
-	Log() *slog.Logger
+	Log() Logger
 
 	// EventLoop returns the underlying event loop
 	EventLoop() *eventloop.EventLoop

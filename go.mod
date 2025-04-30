@@ -16,8 +16,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	github.com/tierklinik-dobersberg/apis v0.41.3
-	github.com/tierklinik-dobersberg/pbtype-server v0.2.1
+	github.com/tierklinik-dobersberg/apis v0.45.1
+	github.com/tierklinik-dobersberg/pbtype-server v0.2.2-0.20250330084502-1d9e8853fe00
 	golang.org/x/sync v0.12.0
 	golang.org/x/text v0.23.0
 	google.golang.org/protobuf v1.36.5
@@ -60,7 +60,7 @@ require (
 	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
-	github.com/tierklinik-dobersberg/longrunning-service v0.0.4-0.20250322083940-222234ef621d // indirect
+	github.com/tierklinik-dobersberg/longrunning-service v0.0.6-0.20250430065801-a87eb3210dfb // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect

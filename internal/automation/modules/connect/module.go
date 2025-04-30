@@ -106,7 +106,7 @@ type client struct {
 	response protoreflect.MessageDescriptor
 	headers  map[string]string
 	resolver protoresolve.Resolver
-	log      *slog.Logger
+	log      modules.Logger
 
 	rt *goja.Runtime
 
@@ -128,7 +128,7 @@ func (cli *client) resolveEndpoint() (string, error) {
 	for _, q := range queries {
 		res, err := cli.disc.Discover(ctx, q)
 		if err != nil {
-			cli.log.Error("failed to resolve service instance", "query", q, "error", err)
+			cli.log.Log(context.Background(), slog.LevelError, "failed to resolve service instance", "query", q, "error", err)
 
 			continue
 		}
@@ -174,7 +174,7 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 	}
 
 	if options != nil {
-		c.log.Info("preparing custom HTTP headers")
+		c.log.Log(context.Background(), slog.LevelInfo, "preparing custom HTTP headers")
 
 		headerObj := options.Get("headers")
 		if headerObj != nil {
@@ -192,16 +192,16 @@ func (c *client) do(in *goja.Object, options *goja.Object) any {
 							if s, ok := el.(string); ok {
 								req.Header.Add(key, s)
 							} else {
-								c.log.Warn("ignoring custom header value", "header", key, "value", el)
+								c.log.Log(context.Background(), slog.LevelWarn, "ignoring custom header value", "header", key, "value", el)
 							}
 						}
 
 					default:
-						c.log.Warn("ignoring custom header value", "header", key, "value", val)
+						c.log.Log(context.Background(), slog.LevelWarn, "ignoring custom header value", "header", key, "value", val)
 					}
 				}
 			} else {
-				c.log.Warn("ignoring custom request headers, unsupported type", "type", fmt.Sprintf("%T", headerObj))
+				c.log.Log(context.Background(), slog.LevelWarn, "ignoring custom request headers, unsupported type", "type", fmt.Sprintf("%T", headerObj))
 			}
 		}
 

@@ -1,8 +1,10 @@
 package automation
 
 import (
+	"context"
 	"log/slog"
 	"path/filepath"
+	"sync"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/console"
@@ -16,6 +18,48 @@ import (
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/resolver"
 )
 
+type logger struct {
+	m       sync.RWMutex
+	loggers []modules.Logger
+}
+
+func (l *logger) AddLogger(log modules.Logger) *logger {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	prev := l.loggers
+
+	l.loggers = append(l.loggers, log)
+
+	return &logger{loggers: prev}
+}
+
+func (l *logger) RemoveLogger(log modules.Logger) {
+	l.m.Lock()
+	defer l.m.Unlock()
+
+	var res []modules.Logger
+
+	for _, e := range l.loggers {
+		if e == log {
+			continue
+		}
+
+		res = append(res, e)
+	}
+
+	l.loggers = res
+}
+
+func (l *logger) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	l.m.RLock()
+	defer l.m.RUnlock()
+
+	for _, log := range l.loggers {
+		log.Log(ctx, level, msg, args...)
+	}
+}
+
 type Engine struct {
 	name             string
 	loop             *eventloop.EventLoop
@@ -27,7 +71,7 @@ type Engine struct {
 	discoverer       discovery.Discoverer
 	resolver         protoresolve.Resolver
 	automationConfig modules.AutomationAnnotation
-	log              *slog.Logger
+	log              *logger
 
 	moduleRegistry *modules.Registry
 }
@@ -95,6 +139,8 @@ func WithConsole(printer console.Printer) EngineOption {
 }
 
 func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*Engine, error) {
+	logger := &logger{}
+
 	engine := &Engine{
 		cfg:            cfg,
 		name:           name,
@@ -102,10 +148,10 @@ func New(name string, cfg config.Config, broker Broker, opts ...EngineOption) (*
 		moduleRegistry: modules.DefaultRegistry,
 		discoverer:     &noopdiscover.NoOpDiscoverer{},
 		resolver:       protoresolve.NewGlobalResolver(),
-		log: slog.Default().With(
-			slog.String("automation", name),
-		),
+		log:            logger,
 	}
+
+	logger.AddLogger(slog.Default().With(slog.String("automation", name)))
 
 	registry := require.NewRegistry(require.WithLoader(func(path string) ([]byte, error) {
 		if engine.baseDir != "" {
@@ -161,7 +207,7 @@ func (e *Engine) AutomationConfig() modules.AutomationAnnotation {
 	return e.automationConfig
 }
 
-func (e *Engine) Log() *slog.Logger {
+func (e *Engine) Log() modules.Logger {
 	return e.log
 }
 
