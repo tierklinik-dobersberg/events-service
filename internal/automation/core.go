@@ -110,45 +110,46 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			stream := cli.StreamOperationLog(ctx)
 			defer stream.CloseAndReceive()
 
-			// TODO(ppacher): arguments are not yet supported
 			var prevLog *logger
-			opLogger := modules.LoggerFunc(func(ctx context.Context, l slog.Level, s string, a ...any) {
-				buf := new(bytes.Buffer)
-				h := slog.NewTextHandler(buf, nil)
+			opLogger := &modules.FunctionLogger{
+				Handler: func(ctx context.Context, l slog.Level, s string, a ...any) {
+					buf := new(bytes.Buffer)
+					h := slog.NewTextHandler(buf, nil)
 
-				r := slog.NewRecord(time.Now(), l, s, 0)
-				r.Add(args...)
+					r := slog.NewRecord(time.Now(), l, s, 0)
+					r.Add(args...)
 
-				h.Handle(ctx, r)
+					h.Handle(ctx, r)
 
-				var severity longrunningv1.Severity
-				switch l {
-				case slog.LevelDebug:
-					severity = longrunningv1.Severity_SEVERITY_DEBUG
-				case slog.LevelInfo:
-					severity = longrunningv1.Severity_SEVERITY_INFO
-				case slog.LevelWarn:
-					severity = longrunningv1.Severity_SEVERITY_WARNING
-				case slog.LevelError:
-					severity = longrunningv1.Severity_SEVERITY_ERROR
-				}
+					var severity longrunningv1.Severity
+					switch l {
+					case slog.LevelDebug:
+						severity = longrunningv1.Severity_SEVERITY_DEBUG
+					case slog.LevelInfo:
+						severity = longrunningv1.Severity_SEVERITY_INFO
+					case slog.LevelWarn:
+						severity = longrunningv1.Severity_SEVERITY_WARNING
+					case slog.LevelError:
+						severity = longrunningv1.Severity_SEVERITY_ERROR
+					}
 
-				err := stream.Send(&longrunningv1.StreamOperationLogRequest{
-					UniqueId:  id,
-					AuthToken: token,
-					Logs: []*longrunningv1.OperationLog{
-						{
-							Time:     timestamppb.Now(),
-							Message:  buf.String(),
-							Severity: severity,
+					err := stream.Send(&longrunningv1.StreamOperationLogRequest{
+						UniqueId:  id,
+						AuthToken: token,
+						Logs: []*longrunningv1.OperationLog{
+							{
+								Time:     timestamppb.Now(),
+								Message:  buf.String(),
+								Severity: severity,
+							},
 						},
-					},
-				})
+					})
 
-				if err != nil && prevLog != nil {
-					prevLog.Log(ctx, slog.LevelError, "failed to send log message to long-running service", "error", err)
-				}
-			})
+					if err != nil && prevLog != nil {
+						prevLog.Log(ctx, slog.LevelError, "failed to send log message to long-running service", "error", err)
+					}
+				},
+			}
 
 			prevLog = c.engine.log.AddLogger(opLogger)
 			defer c.engine.log.RemoveLogger(opLogger)

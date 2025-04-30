@@ -30,8 +30,12 @@ type Logger interface {
 
 type LoggerFunc func(context.Context, slog.Level, string, ...any)
 
-func (fn LoggerFunc) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
-	fn(ctx, level, msg, args...)
+type FunctionLogger struct {
+	Handler LoggerFunc
+}
+
+func (fn *FunctionLogger) Log(ctx context.Context, lvl slog.Level, msg string, args ...any) {
+	fn.Handler(ctx, lvl, msg, args...)
 }
 
 type VU interface {
