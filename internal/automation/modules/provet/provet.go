@@ -5,20 +5,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"reflect"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/dop251/goja"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/provet-go/provet"
 )
 
-type Module struct{}
+type Module struct {
+	client *provet.ProvetClient
+}
 
 func (*Module) Name() string { return "provet" }
 
-func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
+func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	// Do nothing if Provet is not configured
 	cfg := vu.Config()
 	if cfg.ProvetID == 0 || cfg.ProvetClientID == "" || cfg.ProvetClientSecret == "" {
@@ -29,8 +33,9 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create provet API client: %w", err)
 	}
+	m.client = client.ClientInterface.(*provet.ProvetClient)
 
-	clientType := reflect.ValueOf(client).Type()
+	clientType := reflect.ValueOf(m.client).Type()
 
 	exports := vu.Runtime().NewObject()
 
@@ -42,7 +47,7 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			continue
 		}
 
-		if err := createMethod(vu.Runtime(), exports, client, method); err != nil {
+		if err := createMethod(vu.Runtime(), exports, m.client, method); err != nil {
 			return nil, fmt.Errorf("")
 		}
 	}
@@ -50,8 +55,10 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	return exports, nil
 }
 
-func createMethod(rt *goja.Runtime, obj *goja.Object, client provet.ClientWithResponsesInterface, m reflect.Method) error {
-	obj.Set(jsFuncName(m.Name), func(this goja.Value, args ...goja.Value) (goja.Value, error) {
+func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClient, m reflect.Method) error {
+	obj.Set(jsFuncName(m.Name), func(args ...goja.Value) (goja.Value, error) {
+		log.Printf("%s got called with %v", m.Name, args)
+
 		// make sure we got enough arguments
 		if expected := m.Type.NumIn() - 3; len(args) < expected {
 			return nil, fmt.Errorf("missing required parameters, got %d but expected %d", len(args), expected)
@@ -101,9 +108,11 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client provet.ClientWithRe
 
 			// unmarshal back into the expected parameter type
 			p := reflect.New(inputParam)
-			if err := json.Unmarshal(blob, p); err != nil {
+			if err := json.Unmarshal(blob, p.Interface()); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal parameter %d into %s: %w", argIdx, inputParam.Name(), err)
 			}
+
+			spew.Dump(p.Interface())
 
 			if wasPointer {
 				callArgs = append(callArgs, p)
@@ -112,19 +121,23 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client provet.ClientWithRe
 			}
 		}
 
+		log.Printf("%s: arguments prepared, calling method", m.Name)
 		// finnally, call the method
 		out := m.Func.Call(append([]reflect.Value{
 			reflect.ValueOf(client),
 			reflect.ValueOf(context.Background()),
 		}, callArgs...))
+		log.Printf("%s: got result (%d values)", m.Name, len(out))
 
 		// check returned arguments
-		err, ok := out[1].Interface().(error)
-		if !ok {
-			return nil, fmt.Errorf("expected second return value to be error, got %T", out[1].Interface())
-		}
-		if err != nil {
-			return nil, err
+		if !out[1].IsNil() {
+			err, ok := out[1].Interface().(error)
+			if !ok {
+				return nil, fmt.Errorf("expected second return value to be error, got %T", out[1].Interface())
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		resp, ok := out[0].Interface().(*http.Response)
@@ -139,17 +152,18 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client provet.ClientWithRe
 
 		defer resp.Body.Close()
 
-		var m any
 		content, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read provet response body: %w", err)
 		}
 
-		if err := json.Unmarshal(content, &m); err != nil {
+		var result any
+		if err := json.Unmarshal(content, &result); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal provet response body as JSON: %w", err)
 		}
 
-		return rt.ToValue(m), nil
+		log.Printf("%s: returning result", m.Name)
+		return rt.ToValue(result), nil
 	})
 
 	return nil
