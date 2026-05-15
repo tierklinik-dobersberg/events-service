@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
+	"buf.build/go/protovalidate"
 	connect "github.com/bufbuild/connect-go"
-	"github.com/bufbuild/protovalidate-go"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/idm/v1/idmv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/auth"
@@ -181,7 +181,7 @@ func main() {
 	}
 
 	if err := discovery.Register(ctx, catalog, &discovery.ServiceInstance{
-		Name:    wellknown.EventV1ServiceScropt,
+		Name:    string(wellknown.EventV1ServiceScope),
 		Address: cfg.AdminListenAddress,
 	}); err != nil {
 		slog.Error("failed to register service", "error", err)

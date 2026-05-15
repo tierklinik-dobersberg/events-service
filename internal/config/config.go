@@ -18,6 +18,11 @@ type Config struct {
 
 	// format: <scheme>://<host>:<port>/<fully-qualified-protobuf-service-name>
 	ConnectServices []string `env:"SERVICES"`
+
+	// Provet Configuration
+	ProvetID           int    `env:"PROVET_ID"`
+	ProvetClientID     string `env:"PROVET_CLIENT_ID"`
+	ProvetClientSecret string `env:"PROVET_CLIENT_SECRET"`
 }
 
 func LoadConfig(ctx context.Context) (*Config, error) {
