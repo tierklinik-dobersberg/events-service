@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -57,8 +56,6 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClient, m reflect.Method) error {
 	obj.Set(jsFuncName(m.Name), func(args ...goja.Value) (goja.Value, error) {
-		log.Printf("%s got called with %v", m.Name, args)
-
 		// make sure we got enough arguments
 		if expected := m.Type.NumIn() - 3; len(args) < expected {
 			return nil, fmt.Errorf("missing required parameters, got %d but expected %d", len(args), expected)
@@ -121,13 +118,11 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClien
 			}
 		}
 
-		log.Printf("%s: arguments prepared, calling method", m.Name)
 		// finnally, call the method
 		out := m.Func.Call(append([]reflect.Value{
 			reflect.ValueOf(client),
 			reflect.ValueOf(context.Background()),
 		}, callArgs...))
-		log.Printf("%s: got result (%d values)", m.Name, len(out))
 
 		// check returned arguments
 		if !out[1].IsNil() {
@@ -162,7 +157,6 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClien
 			return nil, fmt.Errorf("failed to unmarshal provet response body as JSON: %w", err)
 		}
 
-		log.Printf("%s: returning result", m.Name)
 		return rt.ToValue(result), nil
 	})
 
