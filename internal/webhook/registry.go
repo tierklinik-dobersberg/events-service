@@ -2,9 +2,7 @@ package webhook
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"regexp"
 	"sync"
 	"time"
 )
@@ -48,29 +46,6 @@ func (r *Registry) List() []Webhook {
 // is already registered, it's created time is kept, last-updated is set
 // to now and the webhook registration is replaced.
 func (r *Registry) RegisterWebhook(definition Webhook) error {
-	// validate thwe webhook path
-	if err := ValidateWebhookPath(definition.Path); err != nil {
-		return fmt.Errorf("invalid webhook path definition: %w", err)
-	}
-
-	// check and prepare expected header regular expressions
-	if len(definition.ExpectedHeaders) > 0 {
-		definition.expectedHeadersParsed = make(map[string]*regexp.Regexp)
-
-		for header, re := range definition.ExpectedHeaders {
-			if re == "" {
-				definition.expectedHeadersParsed[header] = nil
-			} else {
-				p, err := regexp.CompilePOSIX(re)
-				if err != nil {
-					return fmt.Errorf("invalid regular expression in expected_http_headers: %q: %w", header, err)
-				}
-
-				definition.expectedHeadersParsed[header] = p
-			}
-		}
-	}
-
 	// actually perform the registration
 	r.rw.Lock()
 	defer r.rw.Unlock()

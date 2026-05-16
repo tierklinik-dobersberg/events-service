@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"fmt"
 	"mime"
 	"net"
 	"net/http"
@@ -28,7 +29,39 @@ type Webhook struct {
 	LastUpdate time.Time
 }
 
+func (w *Webhook) Prepare() error {
+	// validate the webhook path
+	if err := ValidateWebhookPath(w.Path); err != nil {
+		return fmt.Errorf("invalid webhook path definition: %w", err)
+	}
+
+	// check and prepare expected header regular expressions
+	if len(w.ExpectedHeaders) > 0 {
+		w.expectedHeadersParsed = make(map[string]*regexp.Regexp)
+
+		for header, re := range w.ExpectedHeaders {
+			if re == "" {
+				w.expectedHeadersParsed[header] = nil
+			} else {
+				p, err := regexp.CompilePOSIX(re)
+				if err != nil {
+					return fmt.Errorf("invalid regular expression in expected_http_headers: %q: %w", header, err)
+				}
+
+				w.expectedHeadersParsed[header] = p
+			}
+		}
+	}
+
+	return nil
+}
+
 func (w Webhook) MatchRequest(ctx context.Context, r *http.Request, body []byte) (event *eventsv1.WebhookEvent, err error) {
+	// make sure we ignore expired webhook
+	if w.TTL > 0 && time.Now().After(w.LastUpdate.Add(w.TTL)) {
+		return nil, nil
+	}
+
 	params, trailing, matches := ParseWebhookPath(w.Path, r.URL.Path)
 	if !matches {
 		return nil, nil

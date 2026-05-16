@@ -26,6 +26,7 @@ import (
 	"github.com/tierklinik-dobersberg/events-service/internal/codec"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
 	"github.com/tierklinik-dobersberg/events-service/internal/service"
+	"github.com/tierklinik-dobersberg/events-service/internal/webhook"
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/resolver"
 	"google.golang.org/protobuf/reflect/protoregistry"
 
@@ -120,6 +121,15 @@ func main() {
 	path, handler := eventsv1connect.NewEventServiceHandler(svc, interceptors)
 	serveMux.Handle(path, handler)
 
+	// setup the webhook system
+	webhookRegistry := webhook.NewRegistry(ctx, slog.Default())
+	webhookHandler := webhook.NewHandler(slog.Default(), b, webhookRegistry)
+	serveMux.Handle("webhook/", http.StripPrefix("webhook/", webhookHandler))
+
+	webhookService := service.NewWebhookService(webhookRegistry)
+	path, handler = eventsv1connect.NewWebhookServiceHandler(webhookService, interceptors)
+
+	// prepare the request logging handler
 	loggingHandler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -130,6 +140,7 @@ func main() {
 		})
 	}
 
+	// prepare the wrap handler so we known which server received the request
 	wrapWithKey := func(key string, next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			r = r.WithContext(context.WithValue(r.Context(), serverContextKey, key))
