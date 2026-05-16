@@ -2,10 +2,10 @@ package webhook
 
 import (
 	"context"
-	"io"
-	"log"
+	"mime"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,23 +22,54 @@ type Webhook struct {
 	ExpectedHeaders     map[string]string
 	IPWhiteList         []net.IPNet
 
+	expectedHeadersParsed map[string]*regexp.Regexp
+
 	CreatedAt  time.Time
 	LastUpdate time.Time
 }
 
-func (w Webhook) MatchRequest(ctx context.Context, r *http.Request) (event *eventsv1.WebhookEvent, err error) {
+func (w Webhook) MatchRequest(ctx context.Context, r *http.Request, body []byte) (event *eventsv1.WebhookEvent, err error) {
 	params, trailing, matches := ParseWebhookPath(w.Path, r.URL.Path)
 	if !matches {
 		return nil, nil
 	}
 
-	content, err := io.ReadAll(r.Body)
+	// TODO(ppacher):
+	// 	- verify IP whiltelist
+
+	// ensure request body length does not exceed the expected limit
+	if w.MaxContentLength > 0 && w.MaxContentLength > uint64(r.ContentLength) {
+		return nil, nil
+	}
+
+	// ensure the expected content type matches
+	if w.ExpectedContentType != "" && !checkMimeTypes(w.ExpectedContentType, r.Header.Get("Content-Type")) {
+		return nil, nil
+	}
+
+	// check expected headers and there values
+	if len(w.expectedHeadersParsed) > 0 {
+		for key, m := range w.expectedHeadersParsed {
+			// if there is no regex, just check for header presence
+			if m == nil && r.Header.Get(key) == "" {
+				return nil, nil
+			}
+
+			if m != nil {
+				for _, val := range r.Header.Values(key) {
+					if !m.Match([]byte(val)) {
+						return nil, nil
+					}
+				}
+			}
+		}
+	}
 
 	evt := &eventsv1.WebhookEvent{
 		WebhookPath:    w.Path,
 		RequestPath:    r.URL.EscapedPath() + r.URL.Query().Encode(),
 		HttpHeaders:    make(map[string]*eventsv1.HeaderValues),
-		Content:        content,
+		Content:        body,
 		PathParameters: params,
 		ReceivedAt:     timestamppb.Now(),
 	}
@@ -54,47 +85,37 @@ func (w Webhook) MatchRequest(ctx context.Context, r *http.Request) (event *even
 	return evt, nil
 }
 
-// ParseWebhookPath checks if the passed URL matches the webhooks path definition.
-// If matches, path parameters are extracted and returned.
-func ParseWebhookPath(pattern string, urlPath string) (params map[string]string, trailing string, matches bool) {
-	patternParts := strings.Split(pattern, "/")
-	urlParts := strings.Split(urlPath, "/")
-
-	// quick check
-	if len(urlParts) < len(patternParts) {
-		log.Println("len mismatch")
-		return nil, "", false
+func checkMimeTypes(expected string, got string) bool {
+	expectedMime, _, err := mime.ParseMediaType(expected)
+	if err != nil {
+		return false
 	}
 
-	if len(urlParts) > len(patternParts) && patternParts[len(patternParts)-1] != "{#}" {
-		return nil, "", false
+	gotMime, _, err := mime.ParseMediaType(got)
+	if err != nil {
+		return false
 	}
 
-	params = make(map[string]string)
-	for idx, p := range patternParts {
-		if len(p) > 0 && p[0] == '{' && p[len(p)-1] == '}' {
-			// parse path parameter
-			paramName := p[1 : len(p)-1]
-			if paramName == "" {
-				// this is actual an error and should have been caught before
-				// so just return "no-match"
-				return nil, "", false
-			}
+	if expectedMime == gotMime {
+		return true
+	}
 
-			if idx == len(patternParts)-1 && paramName == "#" {
-				return params, strings.Join(urlParts[idx:], "/"), true
-			}
+	if strings.HasSuffix(expectedMime, "/*") {
+		expectedParts := strings.Split(expectedMime, "/")
+		gotParts := strings.Split(gotMime, "/")
 
-			params[paramName] = urlParts[idx]
-		} else if p != urlParts[idx] {
-			log.Printf("%q does not match %q", p, urlParts[idx])
-			// the path parts don't match
-			return nil, "", false
+		if len(expectedParts) != len(gotParts) {
+			return false
+		}
+
+		for idx := 0; idx < len(expectedParts)-1; idx++ {
+			if expectedParts[idx] != gotParts[idx] {
+				return false
+			}
 		}
 	}
 
-	// if we get here, there's no trailing part
-	return params, "", true
+	return true
 }
 
 func (w Webhook) ToProto() *eventsv1.Webhook {
