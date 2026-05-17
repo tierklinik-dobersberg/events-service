@@ -1,8 +1,10 @@
 package modules
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/dop251/goja"
@@ -53,6 +55,8 @@ func (reg *Registry) EnableModules(vu VU) ([]Instance, error) {
 	instances := make([]Instance, 0, len(reg.modules))
 
 	for _, mod := range reg.modules {
+		vu.Log().Log(context.Background(), slog.LevelInfo, "preparing built-in JS module", "name", mod.Name())
+
 		instance, err := mod.NewModuleInstance(vu)
 		if err != nil {
 			merr.Errors = append(merr.Errors, fmt.Errorf("%s: %w", mod.Name(), err))
