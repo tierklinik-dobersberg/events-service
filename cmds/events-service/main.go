@@ -130,6 +130,7 @@ func main() {
 
 	webhookService := service.NewWebhookService(webhookRegistry)
 	path, handler = eventsv1connect.NewWebhookServiceHandler(webhookService, interceptors)
+	serveMux.Handle(path, handler)
 
 	// prepare the request logging handler
 	loggingHandler := func(next http.Handler) http.Handler {
