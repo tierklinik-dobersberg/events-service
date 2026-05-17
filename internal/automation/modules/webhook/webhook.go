@@ -18,10 +18,12 @@ func (*Module) Name() string { return "webhook" }
 
 func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	if vu.WebhookRegistry() == nil {
+		vu.Log().Log(context.Background(), slog.LevelError, "no webhook registry defined")
 		return nil, nil
 	}
 
 	if vu.Broker() == nil {
+		vu.Log().Log(context.Background(), slog.LevelError, "no message broker available")
 		return nil, nil
 	}
 
