@@ -24,6 +24,42 @@ func TestParseWebhookPath(t *testing.T) {
 			true,
 		},
 		{
+			"provet/100/imaging/",
+			"provet/{id}/imaging",
+			map[string]string{
+				"id": "100",
+			},
+			"",
+			true,
+		},
+		{
+			"provet/100/imaging",
+			"/provet/{id}/imaging/",
+			map[string]string{
+				"id": "100",
+			},
+			"",
+			true,
+		},
+		{
+			"/provet/100/imaging",
+			"provet/{id}/imaging",
+			map[string]string{
+				"id": "100",
+			},
+			"",
+			true,
+		},
+		{
+			"provet/100/imaging",
+			"/provet/{id}/imaging",
+			map[string]string{
+				"id": "100",
+			},
+			"",
+			true,
+		},
+		{
 			"foo/bar/baz/trailing/path",
 			"foo/{bar}/baz/{#}",
 			map[string]string{

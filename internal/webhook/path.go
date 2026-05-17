@@ -42,6 +42,9 @@ func ValidateWebhookPath(path string) error {
 // ParseWebhookPath checks if the passed URL matches the webhooks path definition.
 // If matches, path parameters are extracted and returned.
 func ParseWebhookPath(pattern string, urlPath string) (params map[string]string, trailing string, matches bool) {
+	pattern = strings.TrimPrefix(strings.TrimSuffix(pattern, "/"), "/")
+	urlPath = strings.TrimPrefix(strings.TrimSuffix(urlPath, "/"), "/")
+
 	patternParts := strings.Split(pattern, "/")
 	urlParts := strings.Split(urlPath, "/")
 
