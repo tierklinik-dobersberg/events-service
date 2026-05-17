@@ -14,6 +14,7 @@ import (
 
 type WebhookRegistryInterface interface {
 	RegisterWebhook(webhook.Webhook) error
+	RemoveWebhook(string) bool
 	List() []webhook.Webhook
 }
 
@@ -57,6 +58,16 @@ func (whs *WebhookService) RegisterWebhook(ctx context.Context, req *connect.Req
 
 	if err := merr.ErrorOrNil(); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&emptypb.Empty{}), nil
+}
+
+func (whs *WebhookService) RemoveWebhook(ctx context.Context, req *connect.Request[eventsv1.RemoveWebhookRequest]) (*connect.Response[emptypb.Empty], error) {
+	found := whs.registry.RemoveWebhook(req.Msg.WebhookPath)
+
+	if !found {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("webhook with path pattern %s not found", req.Msg.WebhookPath))
 	}
 
 	return connect.NewResponse(&emptypb.Empty{}), nil
