@@ -59,6 +59,8 @@ func (r *Registry) RegisterWebhook(definition Webhook) error {
 
 	r.webhooks[definition.Path] = definition
 
+	r.log.Info("new webhook registered", "pattern", definition.Path, "content-type", definition.ExpectedContentType)
+
 	return nil
 }
 
