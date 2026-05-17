@@ -36,6 +36,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// we never ever accept webhooks with more that 10k bytes
 	if r.ContentLength > 10*1024 {
+		h.log.Warn("rejecting webhook request", "error", "request entity to large")
 		http.Error(w, "Request to large", http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -46,6 +47,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("failed to read HTTP request body", "error", err)
 		return
 	}
+
+	h.log.Info("received webhook request", "url", r.URL.String())
 
 	// find matching webhooks and publish the events
 	foundMatch := false
