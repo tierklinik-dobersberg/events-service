@@ -17,6 +17,8 @@ type Module struct{}
 func (*Module) Name() string { return "webhook" }
 
 func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
+	vu.Log().Log(context.Background(), slog.LevelInfo, "creating webhook module")
+
 	if vu.WebhookRegistry() == nil {
 		vu.Log().Log(context.Background(), slog.LevelError, "no webhook registry defined")
 		return nil, nil
