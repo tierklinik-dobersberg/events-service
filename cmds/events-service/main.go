@@ -126,7 +126,7 @@ func main() {
 	// setup the webhook system
 	webhookRegistry := webhook.NewRegistry(ctx, slog.Default())
 	webhookHandler := webhook.NewHandler(slog.Default(), b, webhookRegistry)
-	serveMux.Handle("webhook/", http.StripPrefix("webhook/", webhookHandler))
+	serveMux.Handle("/webhook/", http.StripPrefix("/webhook/", webhookHandler))
 
 	webhookService := service.NewWebhookService(webhookRegistry)
 	path, handler = eventsv1connect.NewWebhookServiceHandler(webhookService, interceptors)
