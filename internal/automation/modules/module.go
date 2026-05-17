@@ -8,7 +8,9 @@ import (
 	"github.com/dop251/goja_nodejs/eventloop"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
+	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
+	"github.com/tierklinik-dobersberg/events-service/internal/webhook"
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
 )
 
@@ -44,6 +46,12 @@ type VU interface {
 
 	// Registry returns the require registry for the goja runtime.
 	Registry() *require.Registry
+
+	// WebhookRegistry returns the webhook registry
+	WebhookRegistry() *webhook.Registry
+
+	// Broker returns the message broker
+	Broker() *broker.Broker
 
 	// Config returns the configuration object.
 	Config() config.Config

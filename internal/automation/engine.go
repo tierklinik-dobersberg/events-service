@@ -13,7 +13,9 @@ import (
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/noopdiscover"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
+	"github.com/tierklinik-dobersberg/events-service/internal/broker"
 	"github.com/tierklinik-dobersberg/events-service/internal/config"
+	"github.com/tierklinik-dobersberg/events-service/internal/webhook"
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/protoresolve"
 	"github.com/tierklinik-dobersberg/pbtype-server/pkg/resolver"
 )
@@ -72,6 +74,8 @@ type Engine struct {
 	resolver         protoresolve.Resolver
 	automationConfig modules.AutomationAnnotation
 	log              *logger
+	webhookRegistry  *webhook.Registry
+	broker           *broker.Broker
 
 	moduleRegistry *modules.Registry
 }
@@ -80,8 +84,16 @@ func (e *Engine) Registry() *require.Registry {
 	return e.registry
 }
 
+func (e *Engine) WebhookRegistry() *webhook.Registry {
+	return e.webhookRegistry
+}
+
 func (e *Engine) Config() config.Config {
 	return e.cfg
+}
+
+func (e *Engine) Broker() *broker.Broker {
+	return e.broker
 }
 
 func (e *Engine) PackagePath() string {
@@ -115,6 +127,18 @@ func WithBaseDirectory(dir string) EngineOption {
 func WithModulsRegistry(reg *modules.Registry) EngineOption {
 	return func(e *Engine) {
 		e.moduleRegistry = reg
+	}
+}
+
+func WithWebhookRegistry(reg *webhook.Registry) EngineOption {
+	return func(e *Engine) {
+		e.webhookRegistry = reg
+	}
+}
+
+func WithBroker(broker *broker.Broker) EngineOption {
+	return func(e *Engine) {
+		e.broker = broker
 	}
 }
 

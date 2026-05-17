@@ -164,6 +164,8 @@ func main() {
 
 	options := []automation.EngineOption{
 		automation.WithDiscoverer(catalog),
+		automation.WithWebhookRegistry(webhookRegistry),
+		automation.WithBroker(b),
 	}
 
 	// setup automation framework

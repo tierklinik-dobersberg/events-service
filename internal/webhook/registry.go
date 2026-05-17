@@ -62,6 +62,19 @@ func (r *Registry) RegisterWebhook(definition Webhook) error {
 	return nil
 }
 
+func (r *Registry) RemoveWebhook(pathPattern string) bool {
+	r.rw.Lock()
+	defer r.rw.Unlock()
+
+	_, ok := r.webhooks[pathPattern]
+	if !ok {
+		return false
+	}
+
+	delete(r.webhooks, pathPattern)
+	return true
+}
+
 func (r *Registry) cleanup(ctx context.Context) {
 	defer r.wg.Done()
 
