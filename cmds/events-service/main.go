@@ -39,8 +39,10 @@ import (
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fetch"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/fs"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/path"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/provet"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/template"
 	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/timeutil"
+	_ "github.com/tierklinik-dobersberg/events-service/internal/automation/modules/webhook"
 )
 
 var serverContextKey = struct{ S string }{S: "serverContextKey"}
