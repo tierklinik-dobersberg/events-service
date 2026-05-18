@@ -26,6 +26,7 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	// Do nothing if Provet is not configured
 	cfg := vu.Config()
 	if cfg.ProvetID == 0 || cfg.ProvetClientID == "" || cfg.ProvetClientSecret == "" {
+		vu.Log().Log(context.Background(), slog.LevelWarn, "provet module not configured")
 		return nil, nil
 	}
 
