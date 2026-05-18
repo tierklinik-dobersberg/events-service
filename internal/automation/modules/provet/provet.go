@@ -101,7 +101,12 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 				callArgs = append(callArgs, reflect.ValueOf(args[argIdx].Export()))
 				continue
 			} else {
-				vu.Log().Log(context.Background(), slog.LevelInfo, "cannot directly assign parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
+				if exportType.ConvertibleTo(inputParam) {
+					callArgs = append(callArgs, reflect.ValueOf(args[argIdx]).Convert(inputParam))
+					continue
+				}
+
+				vu.Log().Log(context.Background(), slog.LevelInfo, "cannot directly assign/convert parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
 			}
 
 			wasPointer := false
