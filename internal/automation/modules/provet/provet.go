@@ -96,9 +96,12 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			inputParam := m.Type.In(mIdx)
 
 			// directly assign if that's possisble
-			if args[argIdx].ExportType().AssignableTo(inputParam) {
+			exportType := args[argIdx].ExportType()
+			if exportType.AssignableTo(inputParam) {
 				callArgs = append(callArgs, reflect.ValueOf(args[argIdx].Export()))
 				continue
+			} else {
+				vu.Log().Log(context.Background(), slog.LevelInfo, "cannot directly assign parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
 			}
 
 			wasPointer := false
