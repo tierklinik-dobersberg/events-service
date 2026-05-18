@@ -3,17 +3,23 @@ package webhook
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
+
+	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 )
+
+type WebhookEventHandler func(event *eventsv1.WebhookEvent, w http.ResponseWriter) chan bool
 
 // Registry manages registered Webhooks.
 type Registry struct {
 	wg  sync.WaitGroup
 	log *slog.Logger
 
-	rw       sync.RWMutex
-	webhooks map[string]Webhook
+	rw              sync.RWMutex
+	webhooks        map[string]Webhook
+	onEventHandlers map[string]WebhookEventHandler
 }
 
 // NewRegistry returns a new webhook registry.
@@ -42,10 +48,7 @@ func (r *Registry) List() []Webhook {
 	return result
 }
 
-// RegisterWebhook registers a new webhook at the registry. If the webhook
-// is already registered, it's created time is kept, last-updated is set
-// to now and the webhook registration is replaced.
-func (r *Registry) RegisterWebhook(definition Webhook) (Webhook, error) {
+func (r *Registry) RegisterWebhookWithHandler(definition Webhook, handler WebhookEventHandler) (Webhook, error) {
 	// actually perform the registration
 	r.rw.Lock()
 	defer r.rw.Unlock()
@@ -56,12 +59,20 @@ func (r *Registry) RegisterWebhook(definition Webhook) (Webhook, error) {
 		definition.CreatedAt = time.Now()
 	}
 	definition.LastUpdate = time.Now()
+	definition.handler = handler
 
 	r.webhooks[definition.Path] = definition
 
 	r.log.Info("new webhook registered", "pattern", definition.Path, "content-type", definition.ExpectedContentType)
 
 	return definition, nil
+}
+
+// RegisterWebhook registers a new webhook at the registry. If the webhook
+// is already registered, it's created time is kept, last-updated is set
+// to now and the webhook registration is replaced.
+func (r *Registry) RegisterWebhook(definition Webhook) (Webhook, error) {
+	return r.RegisterWebhookWithHandler(definition, nil)
 }
 
 func (r *Registry) RemoveWebhook(pathPattern string) bool {

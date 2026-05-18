@@ -31,13 +31,13 @@ func NewHandler(log *slog.Logger, broker BrokerInterface, registry RegistryInter
 	}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ServeHTTP(res http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	// we never ever accept webhooks with more that 10k bytes
 	if r.ContentLength > 10*1024 {
 		h.log.Warn("rejecting webhook request", "error", "request entity to large")
-		http.Error(w, "Request to large", http.StatusRequestEntityTooLarge)
+		http.Error(res, "Request to large", http.StatusRequestEntityTooLarge)
 		return
 	}
 
@@ -52,6 +52,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// find matching webhooks and publish the events
 	foundMatch := false
+	hijacked := true
+
 	hooks := h.registry.List()
 	for _, w := range hooks {
 		evt, err := w.MatchRequest(r.Context(), h.log, r, body)
@@ -75,15 +77,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				h.log.Error("failed to publish webhook event", "webhook", w.Path, "error", err)
 				continue
 			}
+
+			if w.handler != nil {
+				hijacked = <-w.handler(evt, res)
+			}
 		}
 	}
 
 	if !foundMatch {
-		http.Error(w, "Not found", http.StatusNotFound)
+		http.Error(res, "Not found", http.StatusNotFound)
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	if !hijacked {
+		res.WriteHeader(http.StatusAccepted)
+	}
 }
 
 // compile time check

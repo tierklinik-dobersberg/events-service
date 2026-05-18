@@ -24,6 +24,11 @@ type Webhook struct {
 	ExpectedHeaders     map[string]string
 	IPWhiteList         []net.IPNet
 
+	// handler allows the webhook to actually provide
+	// the HTTP response. This is only useful for automations
+	// and is not exposed via the Connect RPC.
+	handler WebhookEventHandler
+
 	expectedHeadersParsed map[string]*regexp.Regexp
 
 	CreatedAt  time.Time

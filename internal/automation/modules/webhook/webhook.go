@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -31,71 +32,63 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		return nil, nil
 	}
 
-	registry := vu.WebhookRegistry()
-	broker := vu.Broker()
-
 	obj := vu.Runtime().NewObject()
 
 	obj.Set("register", func(pattern string, contentType string, callable goja.Callable) any {
-		wh := webhook.Webhook{
-			Path:                pattern,
-			ExpectedContentType: contentType,
-		}
+		return registerWebhook(vu, pattern, contentType, false, callable)
+	})
 
-		if err := wh.Prepare(); err != nil {
-			common.Throw(vu.Runtime(), err)
-		}
-
-		if _, err := registry.RegisterWebhook(wh); err != nil {
-			common.Throw(vu.Runtime(), err)
-		}
-
-		msgs := make(chan *eventsv1.Event)
-		broker.Subscribe("tkd.events.v1.WebhookEvent", msgs)
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		go func() {
-			defer close(msgs)
-			defer broker.UnsubscribeAll(msgs)
-			defer registry.RemoveWebhook(wh.Path)
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case msg := <-msgs:
-					var evt eventsv1.WebhookEvent
-
-					if err := msg.Event.UnmarshalTo(&evt); err != nil {
-						vu.Log().Log(context.Background(), slog.LevelError, "failed to unpack webhook event")
-						continue
-					}
-
-					// filter out webhooks that don't match this registration.
-					if evt.WebhookPath != wh.Path {
-						continue
-					}
-
-					var body any = string(evt.Content)
-					if strings.Contains(evt.ContentType, "application/json") {
-						if err := json.Unmarshal(evt.Content, &body); err != nil {
-							body = string(evt.Content)
-							vu.Log().Log(context.Background(), slog.LevelWarn, "failed to parse JSON response", "error", err.Error())
-						}
-					}
-
-					vu.EventLoop().RunOnLoop(func(r *goja.Runtime) {
-						callable(nil, r.ToValue(body), r.ToValue(&evt))
-					})
-				}
-			}
-		}()
-
-		return cancel
+	obj.Set("registerWithResponse", func(pattern string, contentType string, callable goja.Callable) any {
+		return registerWebhook(vu, pattern, contentType, true, callable)
 	})
 
 	return obj, nil
+}
+
+func registerWebhook(vu modules.VU, pattern string, contentType string, hijack bool, callable goja.Callable) any {
+	registry := vu.WebhookRegistry()
+
+	wh := webhook.Webhook{
+		Path:                pattern,
+		ExpectedContentType: contentType,
+	}
+
+	if err := wh.Prepare(); err != nil {
+		common.Throw(vu.Runtime(), err)
+	}
+
+	handler := func(evt *eventsv1.WebhookEvent, w http.ResponseWriter) chan bool {
+		result := make(chan bool)
+
+		var body any = string(evt.Content)
+		if strings.Contains(evt.ContentType, "application/json") {
+			if err := json.Unmarshal(evt.Content, &body); err != nil {
+				body = string(evt.Content)
+				vu.Log().Log(context.Background(), slog.LevelWarn, "failed to parse JSON response", "error", err.Error())
+			}
+		}
+
+		sendResponse := func(code int, contentType string, payload string) {
+			w.Header().Set("Content-Type", contentType)
+			w.WriteHeader(code)
+
+			w.Write([]byte(payload))
+		}
+
+		vu.EventLoop().RunOnLoop(func(r *goja.Runtime) {
+			callable(nil, r.ToValue(body), r.ToValue(&evt), r.ToValue(sendResponse))
+
+			result <- hijack
+		})
+
+		return result
+	}
+
+	if _, err := registry.RegisterWebhookWithHandler(wh, handler); err != nil {
+		common.Throw(vu.Runtime(), err)
+	}
+
+	return nil
 }
 
 func init() {
