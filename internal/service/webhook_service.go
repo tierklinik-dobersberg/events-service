@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/bufbuild/connect-go"
-	"github.com/hashicorp/go-multierror"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1/eventsv1connect"
 	"github.com/tierklinik-dobersberg/events-service/internal/webhook"
@@ -13,7 +12,7 @@ import (
 )
 
 type WebhookRegistryInterface interface {
-	RegisterWebhook(webhook.Webhook) error
+	RegisterWebhook(webhook.Webhook) (webhook.Webhook, error)
 	RemoveWebhook(string) bool
 	List() []webhook.Webhook
 }
@@ -30,37 +29,32 @@ func NewWebhookService(registry WebhookRegistryInterface) *WebhookService {
 	}
 }
 
-func (whs *WebhookService) RegisterWebhook(ctx context.Context, req *connect.Request[eventsv1.RegisterWebhookRequest]) (*connect.Response[emptypb.Empty], error) {
-	hooks := make([]webhook.Webhook, len(req.Msg.Webhooks))
-
-	for idx, pb := range req.Msg.Webhooks {
-		wh := webhook.Webhook{
-			Path:                pb.WebhookPath,
-			TTL:                 pb.TimeToLive.AsDuration(),
-			ExpectedContentType: pb.ExpectedContentType,
-			MaxContentLength:    uint64(pb.MaxContentLength),
-			ExpectedHeaders:     pb.ExpectedHttpHeaders,
-		}
-
-		if err := wh.Prepare(); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid webhook %s: %w", wh.Path, err))
-		}
-
-		hooks[idx] = wh
+func (whs *WebhookService) RegisterWebhook(ctx context.Context, req *connect.Request[eventsv1.RegisterWebhookRequest]) (*connect.Response[eventsv1.RegisterWebhookResponse], error) {
+	pb := req.Msg.Webhook
+	if pb == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("missing webhook definition"))
 	}
 
-	merr := new(multierror.Error)
-	for _, h := range hooks {
-		if err := whs.registry.RegisterWebhook(h); err != nil {
-			merr.Errors = append(merr.Errors, fmt.Errorf("failed to register webhook %s: %w", h.Path, err))
-		}
+	wh := webhook.Webhook{
+		Path:                pb.WebhookPath,
+		TTL:                 pb.TimeToLive.AsDuration(),
+		ExpectedContentType: pb.ExpectedContentType,
+		MaxContentLength:    uint64(pb.MaxContentLength),
+		ExpectedHeaders:     pb.ExpectedHttpHeaders,
 	}
 
-	if err := merr.ErrorOrNil(); err != nil {
+	if err := wh.Prepare(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid webhook %s: %w", wh.Path, err))
+	}
+
+	res, err := whs.registry.RegisterWebhook(wh)
+	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&eventsv1.RegisterWebhookResponse{
+		Webhook: res.ToProto(),
+	}), nil
 }
 
 func (whs *WebhookService) RemoveWebhook(ctx context.Context, req *connect.Request[eventsv1.RemoveWebhookRequest]) (*connect.Response[emptypb.Empty], error) {

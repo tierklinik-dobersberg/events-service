@@ -110,9 +110,9 @@ func (w Webhook) MatchRequest(ctx context.Context, l *slog.Logger, r *http.Reque
 		Content:        body,
 		PathParameters: params,
 		ReceivedAt:     timestamppb.Now(),
+		ContentType:    r.Header.Get("Content-Type"),
+		Trailing:       trailing,
 	}
-	// TODO(ppacher): add trailing
-	_ = trailing
 
 	for key, values := range r.Header {
 		evt.HttpHeaders[key] = &eventsv1.HeaderValues{

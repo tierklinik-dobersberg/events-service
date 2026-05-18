@@ -54,7 +54,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	foundMatch := false
 	hooks := h.registry.List()
 	for _, w := range hooks {
-		evt, err := w.MatchRequest(r.Context(), r, body)
+		evt, err := w.MatchRequest(r.Context(), h.log, r, body)
 		if err != nil {
 			h.log.Error("failed to match request against webhook definition", "webhook", w.Path, "error", err)
 			continue

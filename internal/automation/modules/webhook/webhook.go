@@ -2,8 +2,10 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/dop251/goja"
 	eventsv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/events/v1"
@@ -44,7 +46,7 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			common.Throw(vu.Runtime(), err)
 		}
 
-		if err := registry.RegisterWebhook(wh); err != nil {
+		if _, err := registry.RegisterWebhook(wh); err != nil {
 			common.Throw(vu.Runtime(), err)
 		}
 
@@ -70,8 +72,16 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 						continue
 					}
 
+					var body any = string(evt.Content)
+					if strings.Contains(evt.ContentType, "application/json") {
+						if err := json.Unmarshal(evt.Content, &body); err != nil {
+							body = string(evt.Content)
+							vu.Log().Log(context.Background(), slog.LevelWarn, "failed to parse JSON response", "error", err.Error())
+						}
+					}
+
 					vu.EventLoop().RunOnLoop(func(r *goja.Runtime) {
-						callable(nil, r.ToValue(&evt))
+						callable(nil, r.ToValue(body), r.ToValue(&evt))
 					})
 				}
 			}

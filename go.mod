@@ -17,7 +17,7 @@ require (
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	github.com/tierklinik-dobersberg/apis v0.57.0
+	github.com/tierklinik-dobersberg/apis v0.58.0
 	github.com/tierklinik-dobersberg/longrunning-service v0.0.6-0.20250430065801-a87eb3210dfb
 	github.com/tierklinik-dobersberg/pbtype-server v0.2.2-0.20250330084502-1d9e8853fe00
 	github.com/tierklinik-dobersberg/provet-go v0.0.0-20260515071146-d3b4e2c0b673

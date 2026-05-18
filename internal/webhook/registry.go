@@ -45,7 +45,7 @@ func (r *Registry) List() []Webhook {
 // RegisterWebhook registers a new webhook at the registry. If the webhook
 // is already registered, it's created time is kept, last-updated is set
 // to now and the webhook registration is replaced.
-func (r *Registry) RegisterWebhook(definition Webhook) error {
+func (r *Registry) RegisterWebhook(definition Webhook) (Webhook, error) {
 	// actually perform the registration
 	r.rw.Lock()
 	defer r.rw.Unlock()
@@ -61,7 +61,7 @@ func (r *Registry) RegisterWebhook(definition Webhook) error {
 
 	r.log.Info("new webhook registered", "pattern", definition.Path, "content-type", definition.ExpectedContentType)
 
-	return nil
+	return definition, nil
 }
 
 func (r *Registry) RemoveWebhook(pathPattern string) bool {
