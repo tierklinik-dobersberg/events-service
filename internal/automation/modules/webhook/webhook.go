@@ -68,7 +68,11 @@ func registerWebhook(vu modules.VU, pattern string, contentType string, hijack b
 			}
 		}
 
-		sendResponse := func(code int, contentType string, payload string) {
+		sendResponse := func(code int, contentType string, payload string, headers map[string]string) {
+			for key, value := range headers {
+				w.Header().Set(key, value)
+			}
+
 			w.Header().Set("Content-Type", contentType)
 			w.WriteHeader(code)
 
