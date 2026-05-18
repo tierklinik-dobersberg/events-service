@@ -72,6 +72,11 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 						continue
 					}
 
+					// filter out webhooks that don't match this registration.
+					if evt.WebhookPath != wh.Path {
+						continue
+					}
+
 					var body any = string(evt.Content)
 					if strings.Contains(evt.ContentType, "application/json") {
 						if err := json.Unmarshal(evt.Content, &body); err != nil {
