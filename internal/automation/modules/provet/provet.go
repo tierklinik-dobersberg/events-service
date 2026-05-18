@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"strings"
@@ -46,7 +47,7 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			continue
 		}
 
-		if err := createMethod(vu.Runtime(), exports, m.client, method); err != nil {
+		if err := createMethod(vu, exports, m.client, method); err != nil {
 			return nil, fmt.Errorf("")
 		}
 	}
@@ -54,7 +55,9 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	return exports, nil
 }
 
-func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClient, m reflect.Method) error {
+func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, m reflect.Method) error {
+	rt := vu.Runtime()
+
 	obj.Set(jsFuncName(m.Name), func(args ...goja.Value) (goja.Value, error) {
 		// make sure we got enough arguments
 		if expected := m.Type.NumIn() - 3; len(args) < expected {
@@ -118,46 +121,86 @@ func createMethod(rt *goja.Runtime, obj *goja.Object, client *provet.ProvetClien
 			}
 		}
 
-		// finnally, call the method
-		out := m.Func.Call(append([]reflect.Value{
-			reflect.ValueOf(client),
-			reflect.ValueOf(context.Background()),
-		}, callArgs...))
+		promise, resolve, reject := rt.NewPromise()
 
-		// check returned arguments
-		if !out[1].IsNil() {
-			err, ok := out[1].Interface().(error)
+		go func() {
+			defer func() {
+				if x := recover(); x != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "captured panic in provet API call", "reason", x)
+				}
+			}()
+			// finnally, call the method
+			out := m.Func.Call(append([]reflect.Value{
+				reflect.ValueOf(client),
+				reflect.ValueOf(context.Background()),
+			}, callArgs...))
+
+			// check returned arguments
+			if !out[1].IsNil() {
+				err, ok := out[1].Interface().(error)
+				if !ok {
+					rejectErr := fmt.Errorf("expected second return value to be error, got %T", out[1].Interface())
+					if err := reject(rejectErr); err != nil {
+						vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+					}
+				}
+
+				if err != nil {
+					rejectErr := err
+					if err := reject(rejectErr); err != nil {
+						vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+					}
+				}
+
+				return
+			}
+
+			resp, ok := out[0].Interface().(*http.Response)
 			if !ok {
-				return nil, fmt.Errorf("expected second return value to be error, got %T", out[1].Interface())
+				rejectErr := fmt.Errorf("expected first return value to be *http.Response, got %T", out[0].Interface())
+				if err := reject(rejectErr); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+				}
+
+				return
 			}
+
+			// check the status code
+			if sc := resp.StatusCode; sc < 200 || sc >= 300 {
+				rejectErr := fmt.Errorf("got unexpected status code %d: %s", sc, resp.Status)
+				if err := reject(rejectErr); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+				}
+
+				return
+			}
+
+			defer resp.Body.Close()
+
+			content, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return nil, err
+				rejectErr := fmt.Errorf("failed to read provet response body: %w", err)
+				if err := reject(rejectErr); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+				}
+
+				return
 			}
-		}
 
-		resp, ok := out[0].Interface().(*http.Response)
-		if !ok {
-			return nil, fmt.Errorf("expected first return value to be *http.Response, got %T", out[0].Interface())
-		}
+			var result any
+			if err := json.Unmarshal(content, &result); err != nil {
+				rejectErr := fmt.Errorf("failed to unmarshal provet response body as JSON: %w", err)
+				if err := reject(rejectErr); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
+				}
 
-		// check the status code
-		if sc := resp.StatusCode; sc < 200 || sc >= 300 {
-			return nil, fmt.Errorf("got unexpected status code %d: %s", sc, resp.Status)
-		}
+				return
+			}
 
-		defer resp.Body.Close()
+			resolve(rt.ToValue(result))
+		}()
 
-		content, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read provet response body: %w", err)
-		}
-
-		var result any
-		if err := json.Unmarshal(content, &result); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal provet response body as JSON: %w", err)
-		}
-
-		return rt.ToValue(result), nil
+		return rt.ToValue(promise), nil
 	})
 
 	return nil
