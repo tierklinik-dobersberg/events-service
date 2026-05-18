@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"reflect"
+	"runtime/debug"
 	"strings"
 
 	"github.com/davecgh/go-spew/spew"
@@ -152,6 +153,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			defer func() {
 				if x := recover(); x != nil {
 					vu.Log().Log(context.Background(), slog.LevelError, "captured panic in provet API call", "reason", x)
+					vu.Log().Log(context.Background(), slog.LevelError, string(debug.Stack()))
 				}
 			}()
 			// finnally, call the method
