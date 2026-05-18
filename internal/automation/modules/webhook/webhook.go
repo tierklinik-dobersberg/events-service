@@ -77,12 +77,16 @@ func registerWebhook(vu modules.VU, pattern string, contentType string, hijack b
 			w.WriteHeader(code)
 
 			w.Write([]byte(payload))
+
+			result <- true
 		}
 
 		vu.EventLoop().RunOnLoop(func(r *goja.Runtime) {
 			callable(nil, r.ToValue(body), r.ToValue(&evt), r.ToValue(sendResponse))
 
-			result <- hijack
+			if !hijack {
+				result <- false
+			}
 		})
 
 		return result
