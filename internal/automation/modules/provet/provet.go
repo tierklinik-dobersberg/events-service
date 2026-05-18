@@ -25,20 +25,36 @@ func (*Module) Name() string { return "provet" }
 func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	// Do nothing if Provet is not configured
 	cfg := vu.Config()
-	if cfg.ProvetID == 0 || cfg.ProvetClientID == "" || cfg.ProvetClientSecret == "" {
-		vu.Log().Log(context.Background(), slog.LevelWarn, "provet module not configured")
-		return nil, nil
-	}
-
-	client, err := provet.NewWithClientCredentials(context.Background(), cfg.ProvetID, cfg.ProvetClientID, cfg.ProvetClientSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create provet API client: %w", err)
-	}
-	m.client = client.ClientInterface.(*provet.ProvetClient)
-
-	clientType := reflect.ValueOf(m.client).Type()
 
 	exports := vu.Runtime().NewObject()
+
+	if cfg.ProvetID != 0 && cfg.ProvetClientID != "" && cfg.ProvetClientSecret != "" {
+		if err := createCient(vu, exports, cfg.ProvetID, cfg.ProvetClientID, cfg.ProvetClientSecret); err != nil {
+			return nil, err
+		}
+	}
+
+	exports.Set("configure", func(provetID int, clientID string, clientSecret string) (*goja.Object, error) {
+		client := vu.Runtime().NewObject()
+
+		if err := createCient(vu, client, provetID, clientID, clientSecret); err != nil {
+			return nil, fmt.Errorf("failed to configure provet client: %w", err)
+		}
+
+		return client, nil
+	})
+
+	return exports, nil
+}
+
+func createCient(vu modules.VU, object *goja.Object, provetID int, clientID string, clientSecret string) error {
+	client, err := provet.NewWithClientCredentials(context.Background(), provetID, clientID, clientSecret)
+	if err != nil {
+		return fmt.Errorf("failed to create provet API client: %w", err)
+	}
+	provetClient := client.ClientInterface.(*provet.ProvetClient)
+
+	clientType := reflect.ValueOf(provetClient).Type()
 
 	for idx := range clientType.NumMethod() {
 		method := clientType.Method(idx)
@@ -48,12 +64,12 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			continue
 		}
 
-		if err := createMethod(vu, exports, m.client, method); err != nil {
-			return nil, fmt.Errorf("")
+		if err := createMethod(vu, object, provetClient, method); err != nil {
+			return fmt.Errorf("failed to create reflected provet API method: %w", err)
 		}
 	}
 
-	return exports, nil
+	return nil
 }
 
 func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, m reflect.Method) error {
