@@ -150,6 +150,10 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 		return ds, fmt.Errorf("failed to configure scheduled procedure step id: %w", err)
 	}
 
+	if err := add(tag.ScheduledProcedureStepSequence, [][]*dicom.Element{scheduledProcedureStep}); err != nil {
+		return ds, fmt.Errorf("failed to configure scheduled procedure sequence id: %w", err)
+	}
+
 	name := fmt.Sprintf("%s^%s", cfg.ClientLastName, cfg.ClientFirstName)
 	if err := add(tag.ResponsiblePerson, strings.Trim(name, "^")); err != nil {
 		return ds, fmt.Errorf("failed to configure responsible person: %w", err)
