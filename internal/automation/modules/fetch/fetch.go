@@ -1,9 +1,11 @@
 package fetch
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -53,6 +55,8 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 		promise, resolve, reject := vm.NewPromise()
 
 		go func() {
+			vu.Log().Log(context.Background(), slog.LevelInfo, "fetch: sending request", "url", req.URL.String(), "headers", req.Header)
+
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				reject(err)
