@@ -152,7 +152,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 		go func() {
 			defer func() {
 				if x := recover(); x != nil {
-					vu.Log().Log(context.Background(), slog.LevelError, "captured panic in provet API call", "reason", x)
+					vu.Log().Log(context.Background(), slog.LevelError, "captured panic in provet API call", "reason", x, "method", m.Name)
 					vu.Log().Log(context.Background(), slog.LevelError, string(debug.Stack()))
 				}
 			}()
