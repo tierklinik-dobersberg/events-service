@@ -57,7 +57,7 @@ func createTagObject(vu modules.VU) *goja.Object {
 	for name := range TagNames {
 		t, err := findTag(name)
 		if err != nil {
-			vu.Log().Log(context.Background(), slog.LevelError, "failed to find tag", "name", name)
+			vu.Log().Log(context.Background(), slog.LevelDebug, "failed to find tag", "name", name)
 			continue
 		}
 
