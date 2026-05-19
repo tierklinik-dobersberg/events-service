@@ -52,6 +52,12 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			}
 		}
 
+		if user, ok := options["user"].(string); ok {
+			password, _ := options["password"].(string)
+
+			req.SetBasicAuth(user, password)
+		}
+
 		promise, resolve, reject := vm.NewPromise()
 
 		go func() {
