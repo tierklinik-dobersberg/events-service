@@ -24,6 +24,7 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	exports.Set("tag", tags)
 	exports.Set("createWorklistDataset", createWorklistDataset)
 	exports.Set("write", writeDicomFile)
+	exports.Set("read", readDicomFile)
 
 	return exports, nil
 }
@@ -32,6 +33,20 @@ func init() {
 	if err := modules.Register(&Module{}); err != nil {
 		panic(fmt.Errorf("failed to register module %w", err))
 	}
+}
+
+func readDicomFile(path string) (dicom.Dataset, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return dicom.Dataset{}, fmt.Errorf("failed to open file: %w", err)
+	}
+
+	ds, err := dicom.ParseUntilEOF(f, nil, dicom.SkipPixelData())
+	if err != nil {
+		return dicom.Dataset{}, fmt.Errorf("failed to read DICOM file: %w", err)
+	}
+
+	return ds, nil
 }
 
 func createTagObject(vu modules.VU) *goja.Object {
