@@ -108,15 +108,24 @@ func (w Webhook) MatchRequest(ctx context.Context, l *slog.Logger, r *http.Reque
 		}
 	}
 
+	// prepare query parameters
+	queryParams := make(map[string]*eventsv1.HeaderValues)
+	for key, val := range r.URL.Query() {
+		queryParams[key] = &eventsv1.HeaderValues{
+			Values: val,
+		}
+	}
+
 	evt := &eventsv1.WebhookEvent{
-		WebhookPath:    w.Path,
-		RequestPath:    r.URL.EscapedPath() + r.URL.Query().Encode(),
-		HttpHeaders:    make(map[string]*eventsv1.HeaderValues),
-		Content:        body,
-		PathParameters: params,
-		ReceivedAt:     timestamppb.Now(),
-		ContentType:    r.Header.Get("Content-Type"),
-		Trailing:       trailing,
+		WebhookPath:     w.Path,
+		RequestPath:     r.URL.EscapedPath() + "&" + r.URL.Query().Encode(),
+		HttpHeaders:     make(map[string]*eventsv1.HeaderValues),
+		Content:         body,
+		PathParameters:  params,
+		ReceivedAt:      timestamppb.Now(),
+		ContentType:     r.Header.Get("Content-Type"),
+		Trailing:        trailing,
+		QueryParameters: queryParams,
 	}
 
 	for key, values := range r.Header {
