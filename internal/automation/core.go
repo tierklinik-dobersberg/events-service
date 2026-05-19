@@ -3,6 +3,7 @@ package automation
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
@@ -16,6 +17,7 @@ import (
 	longrunningv1 "github.com/tierklinik-dobersberg/apis/gen/go/tkd/longrunning/v1"
 	"github.com/tierklinik-dobersberg/apis/gen/go/tkd/longrunning/v1/longrunningv1connect"
 	"github.com/tierklinik-dobersberg/apis/pkg/discovery/wellknown"
+	"github.com/tierklinik-dobersberg/events-service/internal/automation/common"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules/connect"
 	"github.com/tierklinik-dobersberg/longrunning-service/pkg/op"
@@ -64,6 +66,19 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 	r.Set("clearSchedule", c.clearSchedule)
 	r.Set("on", c.onEvent)
 	r.Set("publish", c.publish)
+
+	// add some std functions
+	r.Set("btoa", func(value string) string {
+		return base64.RawURLEncoding.EncodeToString([]byte(value))
+	})
+	r.Set("atob", func(value string) string {
+		val, err := base64.RawURLEncoding.DecodeString(value)
+		if err != nil {
+			common.Throw(r, err)
+		}
+
+		return string(val)
+	})
 }
 
 func (c *CoreModule) schedule(schedule string, callable goja.Callable) (int, error) {
