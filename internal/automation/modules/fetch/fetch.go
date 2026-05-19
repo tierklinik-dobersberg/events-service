@@ -35,6 +35,21 @@ func (*Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 			common.Throw(vm, err)
 		}
 
+		if headers, ok := options["headers"].(map[string]any); ok {
+			for key, hval := range headers {
+				switch v := hval.(type) {
+				case []any:
+					for _, anyVal := range v {
+						if s, ok := anyVal.(string); ok {
+							req.Header.Add(key, s)
+						}
+					}
+				case string:
+					req.Header.Add(key, v)
+				}
+			}
+		}
+
 		promise, resolve, reject := vm.NewPromise()
 
 		go func() {
