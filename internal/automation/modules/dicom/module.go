@@ -130,29 +130,29 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 	}
 
 	if err := addStep(tag.Modality, cfg.Modality); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure modality: %w", err)
 	}
 	if err := addStep(tag.ScheduledStationAETitle, cfg.ScheduledAET); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure schedule-aet-title: %w", err)
 	}
 	if err := addStep(tag.ScheduledProcedureStepDescription, cfg.StepDescription); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure scheduled procedure step description: %w", err)
 	}
 	if err := addStep(tag.ScheduledProcedureStepID, cfg.StepID); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure scheduled procedure step id: %w", err)
 	}
 
 	name := fmt.Sprintf("%s^%s", cfg.ClientLastName, cfg.ClientFirstName)
 	if err := add(tag.ResponsiblePerson, strings.Trim(name, "^")); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure responsible person: %w", err)
 	}
 
 	if err := add(tag.ResponsiblePersonRole, "Owner"); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure responsible person role: %w", err)
 	}
 
 	if err := add(tag.RequestingPhysician, cfg.RequestingUser); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure requesting physician: %w", err)
 	}
 
 	name = cfg.PatientName
@@ -160,31 +160,31 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 		name = "Unknown"
 	}
 	if err := add(tag.PatientName, name); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure patient name: %w", err)
 	}
 
 	if err := add(tag.PatientID, cfg.PatientID); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure patient id: %w", err)
 	}
 
 	if err := add(tag.PatientSex, cfg.PatientSex); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure patient sex: %w", err)
 	}
 
 	if cfg.PatientSexNeutered != nil {
 		if *cfg.PatientSexNeutered {
 			if err := add(tag.PatientSexNeutered, "ALTERED"); err != nil {
-				return ds, err
+				return ds, fmt.Errorf("failed to configure patient sex neutered: %w", err)
 			}
 		} else {
 			if err := add(tag.PatientSexNeutered, "UNALTERED"); err != nil {
-				return ds, err
+				return ds, fmt.Errorf("failed to configure patient sex neutered: %w", err)
 			}
 		}
 	}
 
 	if err := add(tag.OtherPatientIDs, []string{cfg.AdditionalPatientID, fmt.Sprintf("client:%s", cfg.ClientID)}); err != nil {
-		return ds, err
+		return ds, fmt.Errorf("failed to configure other patient ids: %w", err)
 	}
 
 	return ds, nil
