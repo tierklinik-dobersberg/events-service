@@ -3,6 +3,7 @@ package dicom
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"strings"
@@ -68,7 +69,7 @@ func createTagObject(vu modules.VU) *goja.Object {
 }
 
 type Worklist struct {
-	Modality        string
+	Modality        string `json:"modality"`
 	ScheduledAET    string
 	StepDescription string
 	StepID          string
@@ -198,6 +199,8 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 	if err := add(tag.OtherPatientIDs, []string{cfg.AdditionalPatientID, fmt.Sprintf("client:%s", cfg.ClientID)}); err != nil {
 		return ds, fmt.Errorf("failed to configure other patient ids: %w", err)
 	}
+
+	log.Printf("Creating worklist dataset cfg=%#v ds=%#v", cfg, ds)
 
 	return ds, nil
 }
