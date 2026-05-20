@@ -69,14 +69,14 @@ func createTagObject(vu modules.VU) *goja.Object {
 }
 
 type Steps struct {
-	ScheduledAET    string `json:"scheduled_aet"`
 	StepDescription string `json:"description"`
 	StepID          string `json:"id"`
 }
 
 type Worklist struct {
-	Modality string  `json:"modality"`
-	Steps    []Steps `json:"steps"`
+	Modality     string  `json:"modality"`
+	Steps        []Steps `json:"steps"`
+	ScheduledAET string  `json:"scheduled_aet"`
 
 	ClientFirstName string `json:"client_first_name"`
 	ClientLastName  string `json:"client_last_name"`
@@ -147,7 +147,7 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 		if err := addStep(tag.Modality, cfg.Modality); err != nil {
 			return ds, fmt.Errorf("failed to configure modality: %w", err)
 		}
-		if err := addStep(tag.ScheduledStationAETitle, step.ScheduledAET); err != nil {
+		if err := addStep(tag.ScheduledStationAETitle, cfg.ScheduledAET); err != nil {
 			return ds, fmt.Errorf("failed to configure schedule-aet-title: %w", err)
 		}
 		if err := addStep(tag.ScheduledProcedureStepDescription, step.StepDescription); err != nil {
