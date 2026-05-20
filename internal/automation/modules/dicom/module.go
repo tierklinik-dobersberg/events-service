@@ -70,22 +70,22 @@ func createTagObject(vu modules.VU) *goja.Object {
 
 type Worklist struct {
 	Modality        string `json:"modality"`
-	ScheduledAET    string
-	StepDescription string
-	StepID          string
+	ScheduledAET    string `json:"scheduled_aet"`
+	StepDescription string `json:"step_description"`
+	StepID          string `json:"step_id"`
 
-	ClientFirstName string
-	ClientLastName  string
-	ClientID        string
+	ClientFirstName string `json:"client_first_name"`
+	ClientLastName  string `json:"client_last_name"`
+	ClientID        string `json:"client_id"`
 
-	PatientName         string
-	PatientID           string
-	PatientBirthDate    string
-	PatientSex          string
-	PatientSexNeutered  *bool
-	AdditionalPatientID string
+	PatientName         string `json:"patient_name"`
+	PatientID           string `json:"patient_id"`
+	PatientBirthDate    string `json:"patient_birth_date"`
+	PatientSex          string `json:"patient_sex"`
+	PatientSexNeutered  *bool  `json:"patient_sex_neutered"`
+	AdditionalPatientID string `json:"additional_patient_id"`
 
-	RequestingUser string
+	RequestingUser string `json:"requesting_user"`
 }
 
 func writeDicomFile(ds dicom.Dataset, path string) error {
