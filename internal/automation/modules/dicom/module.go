@@ -126,7 +126,7 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 		return nil
 	}
 
-	scheduledProcedureStep := make([]*dicom.Element, 1)
+	var scheduledProcedureStep []*dicom.Element
 	addStep := func(t tag.Tag, value string) error {
 		el, err := dicom.NewElement(t, []string{value})
 		if err != nil {
