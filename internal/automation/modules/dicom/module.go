@@ -68,11 +68,15 @@ func createTagObject(vu modules.VU) *goja.Object {
 	return obj
 }
 
-type Worklist struct {
-	Modality        string `json:"modality"`
+type Steps struct {
 	ScheduledAET    string `json:"scheduled_aet"`
-	StepDescription string `json:"step_description"`
-	StepID          string `json:"step_id"`
+	StepDescription string `json:"description"`
+	StepID          string `json:"id"`
+}
+
+type Worklist struct {
+	Modality string  `json:"modality"`
+	Steps    []Steps `json:"steps"`
 
 	ClientFirstName string `json:"client_first_name"`
 	ClientLastName  string `json:"client_last_name"`
@@ -126,32 +130,37 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 		return nil
 	}
 
-	var scheduledProcedureStep []*dicom.Element
-	addStep := func(t tag.Tag, value string) error {
-		el, err := dicom.NewElement(t, []string{value})
-		if err != nil {
-			return err
+	var scheduledProcedureSteps [][]*dicom.Element
+	for _, step := range cfg.Steps {
+		var scheduledProcedureStep []*dicom.Element
+		addStep := func(t tag.Tag, value string) error {
+			el, err := dicom.NewElement(t, []string{value})
+			if err != nil {
+				return err
+			}
+
+			scheduledProcedureStep = append(scheduledProcedureStep, el)
+
+			return nil
 		}
 
-		scheduledProcedureStep = append(scheduledProcedureStep, el)
+		if err := addStep(tag.Modality, cfg.Modality); err != nil {
+			return ds, fmt.Errorf("failed to configure modality: %w", err)
+		}
+		if err := addStep(tag.ScheduledStationAETitle, step.ScheduledAET); err != nil {
+			return ds, fmt.Errorf("failed to configure schedule-aet-title: %w", err)
+		}
+		if err := addStep(tag.ScheduledProcedureStepDescription, step.StepDescription); err != nil {
+			return ds, fmt.Errorf("failed to configure scheduled procedure step description: %w", err)
+		}
+		if err := addStep(tag.ScheduledProcedureStepID, step.StepID); err != nil {
+			return ds, fmt.Errorf("failed to configure scheduled procedure step id: %w", err)
+		}
 
-		return nil
-	}
-
-	if err := addStep(tag.Modality, cfg.Modality); err != nil {
-		return ds, fmt.Errorf("failed to configure modality: %w", err)
-	}
-	if err := addStep(tag.ScheduledStationAETitle, cfg.ScheduledAET); err != nil {
-		return ds, fmt.Errorf("failed to configure schedule-aet-title: %w", err)
-	}
-	if err := addStep(tag.ScheduledProcedureStepDescription, cfg.StepDescription); err != nil {
-		return ds, fmt.Errorf("failed to configure scheduled procedure step description: %w", err)
-	}
-	if err := addStep(tag.ScheduledProcedureStepID, cfg.StepID); err != nil {
-		return ds, fmt.Errorf("failed to configure scheduled procedure step id: %w", err)
+		scheduledProcedureSteps = append(scheduledProcedureSteps, scheduledProcedureStep)
 	}
 
-	if err := add(tag.ScheduledProcedureStepSequence, [][]*dicom.Element{scheduledProcedureStep}); err != nil {
+	if err := add(tag.ScheduledProcedureStepSequence, scheduledProcedureSteps); err != nil {
 		return ds, fmt.Errorf("failed to configure scheduled procedure sequence id: %w", err)
 	}
 
