@@ -74,9 +74,10 @@ type Steps struct {
 }
 
 type Worklist struct {
-	Modality     string  `json:"modality"`
-	Steps        []Steps `json:"steps"`
-	ScheduledAET string  `json:"scheduled_aet"`
+	Modality         string  `json:"modality"`
+	Steps            []Steps `json:"steps"`
+	ScheduledAET     string  `json:"scheduled_aet"`
+	StudyInstanceUID string  `json:"studyUID"`
 
 	ClientFirstName string `json:"client_first_name"`
 	ClientLastName  string `json:"client_last_name"`
@@ -167,6 +168,10 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 	name := fmt.Sprintf("%s^%s", cfg.ClientLastName, cfg.ClientFirstName)
 	if err := add(tag.ResponsiblePerson, strings.Trim(name, "^")); err != nil {
 		return ds, fmt.Errorf("failed to configure responsible person: %w", err)
+	}
+
+	if err := add(tag.StudyInstanceUID, cfg.StudyInstanceUID); err != nil {
+		return ds, fmt.Errorf("failed to configure responsible person role: %w", err)
 	}
 
 	if err := add(tag.ResponsiblePersonRole, "Owner"); err != nil {
