@@ -194,7 +194,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					if obj, ok := gv.(*goja.Object); ok && common.MaybeAwaitPromise(r, obj, result, resultErr) {
 						c.engine.log.Log(context.Background(), slog.LevelInfo, "awaiting operation promise", "kind", kind)
 					} else {
-						result <- gv
+						result <- gv.Export()
 					}
 				} else {
 					resultErr <- err
