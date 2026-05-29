@@ -66,7 +66,7 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 	r.Set("on", c.onEvent)
 	r.Set("publish", c.publish)
 	r.Set("wrap", func(name string, fn goja.Callable) {
-		c.wrapOperation(fn, name, nil)
+		go c.wrapOperation(fn, name, nil)
 	})
 
 	// add some std functions
