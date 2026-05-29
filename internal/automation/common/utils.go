@@ -73,7 +73,7 @@ func IsAsyncFunction(rt *goja.Runtime, val goja.Value) bool {
 	return val.ToObject(rt).Get("constructor").ToObject(rt).Get("name").String() == "AsyncFunction"
 }
 
-func MaybeAwaitPromise(rt *goja.Runtime, v *goja.Object, ok chan goja.Value, err chan goja.Value) bool {
+func MaybeAwaitPromise(rt *goja.Runtime, v *goja.Object, ok chan any, err chan error) bool {
 	thenFn, okThen := goja.AssertFunction(v.Get("then"))
 	catchFn, okCatch := goja.AssertFunction(v.Get("catch"))
 
@@ -81,11 +81,11 @@ func MaybeAwaitPromise(rt *goja.Runtime, v *goja.Object, ok chan goja.Value, err
 		return false
 	}
 
-	thenFn(v, rt.ToValue(func(v goja.Value) {
-		ok <- v
+	thenFn(v, rt.ToValue(func(result goja.Value) {
+		ok <- result.Export()
 	}))
-	catchFn(v, rt.ToValue(func(v goja.Value) {
-		err <- v
+	catchFn(v, rt.ToValue(func(result goja.Value) {
+		err <- fmt.Errorf("promise rejected: %v", result.Export())
 	}))
 
 	return true

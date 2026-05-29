@@ -105,7 +105,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 
 		cli, err = wellknown.LongRunningService.Create(context.Background(), c.engine.discoverer)
 		if err != nil {
-			c.engine.log.Log(context.Background(), slog.LevelError, "failed to get longrunning service instance", "error", err)
+			c.engine.log.Log(context.Background(), slog.LevelError, "failed to get longrunning service instance", "error", err, "kind", kind)
 		}
 	}
 
@@ -163,7 +163,7 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 					})
 
 					if err != nil && prevLog != nil {
-						prevLog.Log(ctx, slog.LevelError, "failed to send log message to long-running service", "error", err)
+						prevLog.Log(ctx, slog.LevelError, "failed to send log message to long-running service", "error", err, "kind", kind)
 					}
 				},
 			}
@@ -172,11 +172,11 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			defer c.engine.log.RemoveLogger(opLogger)
 
 			var (
-				result    = make(chan goja.Value, 1)
-				resultErr = make(chan goja.Value, 1)
+				result    = make(chan any, 1)
+				resultErr = make(chan error, 1)
 			)
 
-			c.engine.log.Log(context.Background(), slog.LevelInfo, "scheduling operation on event loop")
+			c.engine.log.Log(context.Background(), slog.LevelInfo, "scheduling operation on event loop", "kind", kind)
 
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
 				this := r.ToValue(this)
@@ -186,24 +186,28 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 				}
 
 				gv, err := callable(this, a...)
+				c.engine.log.Log(context.Background(), slog.LevelInfo, "operation finished", "kind", kind)
+
 				if err == nil {
+					c.engine.log.Log(context.Background(), slog.LevelInfo, "checking for promise", "kind", kind)
+
 					if obj, ok := gv.(*goja.Object); ok && common.MaybeAwaitPromise(r, obj, result, resultErr) {
-						c.engine.log.Log(context.Background(), slog.LevelInfo, "awaiting operation promise")
+						c.engine.log.Log(context.Background(), slog.LevelInfo, "awaiting operation promise", "kind", kind)
 					} else {
 						result <- gv
 					}
 				} else {
-					resultErr <- r.ToValue(err)
+					resultErr <- err
 				}
 			})
 
 			// finally, await the promis
 			select {
 			case r := <-result:
-				return r.Export(), nil
+				return r, nil
 
 			case err := <-resultErr:
-				return nil, fmt.Errorf("operation rejected promise: %v", err.Export())
+				return nil, err
 			}
 
 		}, func(req *connect_go.Request[longrunningv1.RegisterOperationRequest]) {
