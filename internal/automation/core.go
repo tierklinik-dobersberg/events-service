@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"sync"
 	"time"
 
 	connect_go "github.com/bufbuild/connect-go"
@@ -66,6 +65,9 @@ func (c *CoreModule) Enable(r *goja.Runtime) {
 	r.Set("clearSchedule", c.clearSchedule)
 	r.Set("on", c.onEvent)
 	r.Set("publish", c.publish)
+	r.Set("wrap", func(name string, fn goja.Callable) {
+		c.wrapOperation(fn, name, nil)
+	})
 
 	// add some std functions
 	r.Set("btoa", func(value string) string {
@@ -170,18 +172,13 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 			defer c.engine.log.RemoveLogger(opLogger)
 
 			var (
-				result    any
-				resultErr error
+				result    = make(chan goja.Value, 1)
+				resultErr = make(chan goja.Value, 1)
 			)
 
 			c.engine.log.Log(context.Background(), slog.LevelInfo, "scheduling operation on event loop")
 
-			var wg sync.WaitGroup
-			wg.Add(1)
-
 			c.engine.loop.RunOnLoop(func(r *goja.Runtime) {
-				defer wg.Done()
-
 				this := r.ToValue(this)
 				a := make([]goja.Value, len(args))
 				for idx, arg := range args {
@@ -189,17 +186,26 @@ func (c *CoreModule) wrapOperation(callable goja.Callable, kind string, this any
 				}
 
 				gv, err := callable(this, a...)
-
 				if err == nil {
-					result = gv.Export()
+					if obj, ok := gv.(*goja.Object); ok && common.MaybeAwaitPromise(r, obj, result, resultErr) {
+						c.engine.log.Log(context.Background(), slog.LevelInfo, "awaiting operation promise")
+					} else {
+						result <- gv
+					}
 				} else {
-					resultErr = err
+					resultErr <- r.ToValue(err)
 				}
 			})
 
-			wg.Wait()
+			// finally, await the promis
+			select {
+			case r := <-result:
+				return r.Export(), nil
 
-			return result, resultErr
+			case err := <-resultErr:
+				return nil, fmt.Errorf("operation rejected promise: %v", err.Export())
+			}
+
 		}, func(req *connect_go.Request[longrunningv1.RegisterOperationRequest]) {
 			req.Msg.Kind = kind
 			req.Msg.Owner = "automation"

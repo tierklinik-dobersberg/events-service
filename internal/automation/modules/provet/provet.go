@@ -147,7 +147,22 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			}
 		}
 
-		promise, resolve, reject := rt.NewPromise()
+		promise, resolveOnLoop, rejectOnLoop := rt.NewPromise()
+
+		resolve := func(r goja.Value) {
+			vu.EventLoop().RunOnLoop(func(_ *goja.Runtime) {
+				if err := resolveOnLoop(r); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to resolve provet API promise", "error", err)
+				}
+			})
+		}
+		reject := func(r error) {
+			vu.EventLoop().RunOnLoop(func(_ *goja.Runtime) {
+				if err := rejectOnLoop(r); err != nil {
+					vu.Log().Log(context.Background(), slog.LevelError, "failed to resolve provet API promise", "error", err)
+				}
+			})
+		}
 
 		go func() {
 			defer func() {
@@ -167,16 +182,12 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 				err, ok := out[1].Interface().(error)
 				if !ok {
 					rejectErr := fmt.Errorf("expected second return value to be error, got %T", out[1].Interface())
-					if err := reject(rejectErr); err != nil {
-						vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-					}
+					reject(rejectErr)
 				}
 
 				if err != nil {
 					rejectErr := err
-					if err := reject(rejectErr); err != nil {
-						vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-					}
+					reject(rejectErr)
 				}
 
 				return
@@ -185,9 +196,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			resp, ok := out[0].Interface().(*http.Response)
 			if !ok {
 				rejectErr := fmt.Errorf("expected first return value to be *http.Response, got %T", out[0].Interface())
-				if err := reject(rejectErr); err != nil {
-					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-				}
+				reject(rejectErr)
 
 				return
 			}
@@ -195,10 +204,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			// check the status code
 			if sc := resp.StatusCode; sc < 200 || sc >= 300 {
 				rejectErr := fmt.Errorf("got unexpected status code %d: %s", sc, resp.Status)
-				if err := reject(rejectErr); err != nil {
-					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-				}
-
+				reject(rejectErr)
 				return
 			}
 
@@ -207,9 +213,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			content, err := io.ReadAll(resp.Body)
 			if err != nil {
 				rejectErr := fmt.Errorf("failed to read provet response body: %w", err)
-				if err := reject(rejectErr); err != nil {
-					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-				}
+				reject(rejectErr)
 
 				return
 			}
@@ -217,10 +221,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			var result any
 			if err := json.Unmarshal(content, &result); err != nil {
 				rejectErr := fmt.Errorf("failed to unmarshal provet response body as JSON: %w", err)
-				if err := reject(rejectErr); err != nil {
-					vu.Log().Log(context.Background(), slog.LevelError, "failed to reject provet API promise", "error", err)
-				}
-
+				reject(rejectErr)
 				return
 			}
 
