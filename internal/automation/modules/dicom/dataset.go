@@ -65,6 +65,9 @@ func (ds *Dataset) Add(name string, value any) error {
 
 	case Dataset:
 		el, err = dicom.NewElement(t, v.Elements)
+
+	default:
+		el, err = dicom.NewElement(t, v)
 	}
 
 	if err != nil {
