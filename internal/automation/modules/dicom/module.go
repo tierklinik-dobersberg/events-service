@@ -24,6 +24,8 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	tags := createTagObject(vu)
 	exports.Set("tag", tags)
 	exports.Set("createWorklistDataset", createWorklistDataset)
+	exports.Set("createDataset", createDataset)
+	exports.Set("fromObject", fromObject)
 	exports.Set("write", writeDicomFile)
 	exports.Set("read", readDicomFile)
 
@@ -54,6 +56,7 @@ func createTagObject(vu modules.VU) *goja.Object {
 	obj := vu.Runtime().NewObject()
 
 	obj.Set("find", findTag)
+	obj.Set("newElement", newElement)
 
 	for name := range TagNames {
 		t, err := findTag(name)
@@ -217,6 +220,18 @@ func createWorklistDataset(cfg Worklist) (dicom.Dataset, error) {
 	log.Printf("Creating worklist dataset cfg=%#v ds=%#v", cfg, ds)
 
 	return ds, nil
+}
+
+func newElement(name string, value any) (*dicom.Element, error) {
+	t, err := findTag(name)
+	if err != nil {
+		return nil, err
+	}
+
+	if s, ok := value.(string); ok {
+		return dicom.NewElement(t, []string{s})
+	}
+	return dicom.NewElement(t, value)
 }
 
 func findTag(name string) (tag.Tag, error) {
