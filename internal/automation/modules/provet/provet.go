@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"log/slog"
 	"net/http"
 	"reflect"
@@ -15,6 +16,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/provet-go/provet"
+	"golang.org/x/oauth2/clientcredentials"
 )
 
 type Module struct {
@@ -29,16 +31,16 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 
 	exports := vu.Runtime().NewObject()
 
-	if cfg.ProvetID != 0 && cfg.ProvetClientID != "" && cfg.ProvetClientSecret != "" {
-		if err := createCient(vu, exports, cfg.ProvetID, cfg.ProvetClientID, cfg.ProvetClientSecret); err != nil {
+	if cfg.ProvetURL != "" && cfg.ProvetClientID != "" && cfg.ProvetClientSecret != "" {
+		if err := createCient(vu, exports, cfg.ProvetURL, cfg.ProvetClientID, cfg.ProvetClientSecret); err != nil {
 			return nil, err
 		}
 	}
 
-	exports.Set("configure", func(provetID int, clientID string, clientSecret string) (*goja.Object, error) {
+	exports.Set("configure", func(provetURL string, clientID string, clientSecret string) (*goja.Object, error) {
 		client := vu.Runtime().NewObject()
 
-		if err := createCient(vu, client, provetID, clientID, clientSecret); err != nil {
+		if err := createCient(vu, client, provetURL, clientID, clientSecret); err != nil {
 			return nil, fmt.Errorf("failed to configure provet client: %w", err)
 		}
 
@@ -48,11 +50,31 @@ func (m *Module) NewModuleInstance(vu modules.VU) (*goja.Object, error) {
 	return exports, nil
 }
 
-func createCient(vu modules.VU, object *goja.Object, provetID int, clientID string, clientSecret string) error {
-	client, err := provet.NewWithClientCredentials(context.Background(), provetID, clientID, clientSecret)
-	if err != nil {
-		return fmt.Errorf("failed to create provet API client: %w", err)
+func createCient(vu modules.VU, object *goja.Object, server string, clientID string, clientSecret string) error {
+	if !strings.HasSuffix(server, "/") {
+		server += "/"
 	}
+
+	cfg := clientcredentials.Config{
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		TokenURL:     server + "oauth2/token/",
+	}
+
+	client, err := provet.NewClientWithResponses(server+"api/0.1", func(p *provet.ProvetClient) error {
+		p.Client = cfg.Client(context.Background())
+
+		p.RequestEditors = append(p.RequestEditors, func(ctx context.Context, req *http.Request) error {
+			log.Println(req.URL.String())
+			return nil
+		})
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	provetClient := client.ClientInterface.(*provet.ProvetClient)
 
 	clientType := reflect.ValueOf(provetClient).Type()

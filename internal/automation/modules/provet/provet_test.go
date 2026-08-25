@@ -63,7 +63,7 @@ func TestProvetModule(t *testing.T) {
 	reg.Register(m)
 
 	rt, err := automation.New("test", config.Config{
-		ProvetID:           1,
+		ProvetURL:          "https://example.com/1234",
 		ProvetClientID:     "test",
 		ProvetClientSecret: "test",
 	}, nil, automation.WithModulsRegistry(reg), automation.WithConsole(&testLogger{}))

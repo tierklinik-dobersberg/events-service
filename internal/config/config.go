@@ -20,7 +20,7 @@ type Config struct {
 	ConnectServices []string `env:"SERVICES"`
 
 	// Provet Configuration
-	ProvetID           int    `env:"PROVET_ID"`
+	ProvetURL          string `env:"PROVET_URL"`
 	ProvetClientID     string `env:"PROVET_CLIENT_ID"`
 	ProvetClientSecret string `env:"PROVET_CLIENT_SECRET"`
 }
