@@ -39,6 +39,10 @@ func (ds *Dataset) Write(path string) error {
 	return writeDicomFile(d, path)
 }
 
+func (ds *Dataset) AddStrings(name string, values ...string) (*Dataset, error) {
+	return ds.Add(name, values)
+}
+
 func (ds *Dataset) Add(name string, value any) (*Dataset, error) {
 	t, err := findTag(name)
 	if err != nil {
