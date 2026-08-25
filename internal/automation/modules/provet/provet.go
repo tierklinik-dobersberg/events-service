@@ -132,7 +132,9 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 			}
 
 			if inputParam.Kind() == reflect.Int && exportType.Kind() == reflect.Float64 {
+				vu.Log().Log(context.Background(), slog.LevelInfo, m.Name+": converted float to integer type", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
 				callArgs = append(callArgs, reflect.ValueOf(int(args[argIdx].ToInteger())))
+				continue
 			}
 
 			wasPointer := false
