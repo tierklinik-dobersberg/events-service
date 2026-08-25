@@ -55,16 +55,16 @@ func (ds *Dataset) Add(name string, value any) error {
 		el = v
 
 	case dicom.Dataset:
-		el, err = dicom.NewElement(t, v.Elements)
+		el, err = dicom.NewElement(t, [][]*dicom.Element{v.Elements})
 
 	case *dicom.Dataset:
-		el, err = dicom.NewElement(t, v.Elements)
+		el, err = dicom.NewElement(t, [][]*dicom.Element{v.Elements})
 
 	case *Dataset:
-		el, err = dicom.NewElement(t, v.Elements)
+		el, err = dicom.NewElement(t, [][]*dicom.Element{v.Elements})
 
 	case Dataset:
-		el, err = dicom.NewElement(t, v.Elements)
+		el, err = dicom.NewElement(t, [][]*dicom.Element{v.Elements})
 
 	default:
 		el, err = dicom.NewElement(t, v)
