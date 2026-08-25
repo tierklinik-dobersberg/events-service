@@ -65,13 +65,13 @@ func (w *Webhook) Prepare() error {
 func (w Webhook) MatchRequest(ctx context.Context, l *slog.Logger, r *http.Request, body []byte) (event *eventsv1.WebhookEvent, err error) {
 	// make sure we ignore expired webhook
 	if w.TTL > 0 && time.Now().After(w.LastUpdate.Add(w.TTL)) {
-		l.Info("skipping, webhook expired")
+		l.Debug("skipping, webhook expired")
 		return nil, nil
 	}
 
 	params, trailing, matches := ParseWebhookPath(w.Path, r.URL.Path)
 	if !matches {
-		l.Info("skipping, path do not match", "pattern", w.Path, "urlPath", r.URL.Path)
+		l.Debug("skipping, path do not match", "pattern", w.Path, "urlPath", r.URL.Path)
 		return nil, nil
 	}
 
@@ -80,13 +80,13 @@ func (w Webhook) MatchRequest(ctx context.Context, l *slog.Logger, r *http.Reque
 
 	// ensure request body length does not exceed the expected limit
 	if w.MaxContentLength > 0 && w.MaxContentLength > uint64(r.ContentLength) {
-		l.Info("skipping, max content length exceeded", "max-content-length", w.MaxContentLength, "content-lenght", r.ContentLength)
+		l.Warn("dropping webhook, max content length exceeded", "max-content-length", w.MaxContentLength, "content-lenght", r.ContentLength)
 		return nil, nil
 	}
 
 	// ensure the expected content type matches
 	if w.ExpectedContentType != "" && !checkMimeTypes(w.ExpectedContentType, r.Header.Get("Content-Type")) {
-		l.Info("skipping, expected content type does not match", "expected", w.ExpectedContentType, "got", r.Header.Get("Content-Type"))
+		l.Debug("skipping, expected content type does not match", "expected", w.ExpectedContentType, "got", r.Header.Get("Content-Type"))
 		return nil, nil
 	}
 

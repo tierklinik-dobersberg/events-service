@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -50,7 +49,6 @@ func ParseWebhookPath(pattern string, urlPath string) (params map[string]string,
 
 	// quick check
 	if len(urlParts) < len(patternParts) {
-		log.Println("len mismatch")
 		return nil, "", false
 	}
 
@@ -75,7 +73,6 @@ func ParseWebhookPath(pattern string, urlPath string) (params map[string]string,
 
 			params[paramName] = urlParts[idx]
 		} else if p != urlParts[idx] {
-			log.Printf("%q does not match %q", p, urlParts[idx])
 			// the path parts don't match
 			return nil, "", false
 		}

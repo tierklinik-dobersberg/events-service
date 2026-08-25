@@ -12,7 +12,6 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/dop251/goja"
 	"github.com/tierklinik-dobersberg/events-service/internal/automation/modules"
 	"github.com/tierklinik-dobersberg/provet-go/provet"
@@ -129,7 +128,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 					continue
 				}
 
-				vu.Log().Log(context.Background(), slog.LevelInfo, "cannot directly assign/convert parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
+				vu.Log().Log(context.Background(), slog.LevelDebug, "cannot directly assign/convert parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
 			}
 
 			wasPointer := false
@@ -160,7 +159,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 				return nil, fmt.Errorf("failed to unmarshal parameter %d into %s: %w", argIdx, inputParam.Name(), err)
 			}
 
-			spew.Dump(p.Interface())
+			//spew.Dump(p.Interface())
 
 			if wasPointer {
 				callArgs = append(callArgs, p)
