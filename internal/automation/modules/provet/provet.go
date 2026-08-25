@@ -128,7 +128,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 					continue
 				}
 
-				vu.Log().Log(context.Background(), slog.LevelDebug, "cannot directly assign/convert parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
+				vu.Log().Log(context.Background(), slog.LevelInfo, m.Name+": cannot directly assign/convert parameter value", "expected", inputParam.String(), "expectedKind", inputParam.Kind().String(), "got", exportType.String(), "gotKind", exportType.Kind().String())
 			}
 
 			wasPointer := false
@@ -139,7 +139,7 @@ func createMethod(vu modules.VU, obj *goja.Object, client *provet.ProvetClient, 
 
 			// we only support structs for now
 			if inputParam.Kind() != reflect.Struct {
-				return nil, fmt.Errorf("parameter type %s is not yet supported", inputParam.Kind().String())
+				return nil, fmt.Errorf("%s: parameter type %s (parameter %d) is not yet supported", m.Name, inputParam.Kind().String(), argIdx)
 			}
 
 			objArg, ok := args[argIdx].(*goja.Object)
