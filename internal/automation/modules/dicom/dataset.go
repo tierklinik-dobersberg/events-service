@@ -15,7 +15,7 @@ func fromObject(v map[string]any) (*Dataset, error) {
 	ds := createDataset()
 
 	for key, value := range v {
-		if err := ds.Add(key, value); err != nil {
+		if _, err := ds.Add(key, value); err != nil {
 			return nil, fmt.Errorf("failed to add element %s: %v", key, err)
 		}
 	}
@@ -39,10 +39,10 @@ func (ds *Dataset) Write(path string) error {
 	return writeDicomFile(d, path)
 }
 
-func (ds *Dataset) Add(name string, value any) error {
+func (ds *Dataset) Add(name string, value any) (*Dataset, error) {
 	t, err := findTag(name)
 	if err != nil {
-		return fmt.Errorf("failed to find tag %s: %v", name, err)
+		return nil, fmt.Errorf("failed to find tag %s: %v", name, err)
 	}
 
 	var el *dicom.Element
@@ -71,10 +71,10 @@ func (ds *Dataset) Add(name string, value any) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to add element %s|%s: %v", name, t.String(), err)
+		return nil, fmt.Errorf("failed to add element %s|%s: %v", name, t.String(), err)
 	}
 
 	ds.Elements = append(ds.Elements, el)
 
-	return nil
+	return ds, nil
 }
